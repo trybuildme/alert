@@ -132,3 +132,79 @@ def test_disk_cache_file_valid_geojson(client, monkeypatch):
     assert len(files) == 1
     stored = json.loads(files[0].read_text())
     assert stored["type"] == "FeatureCollection"
+
+
+# ---- Place labels (OSM settlement nodes) ----
+
+def _places_payload() -> dict:
+    return {
+        "version": 0.6,
+        "elements": [
+            {"type": "node", "id": 10, "lat": 14.599, "lon": 120.984,
+             "tags": {"place": "city", "name": "Manila",
+                      "population": "1846513", "capital": "yes"}},
+            {"type": "node", "id": 11, "lat": 14.6042, "lon": 120.9822,
+             "tags": {"place": "town", "name": "Pandacan"}},
+            {"type": "node", "id": 12, "lat": 16.0, "lon": 121.0,
+             "tags": {"place": "village", "name": ""}},   # unnamed: dropped
+            {"type": "node", "id": 13, "lat": 17.0, "lon": 122.0,
+             "tags": {"amenity": "school", "name": "No place tag"}},
+        ],
+    }
+
+
+def test_places_converted_with_population_and_capital(client, monkeypatch):
+    seen = {}
+
+    def handler(request):
+        seen["query"] = request.content.decode()
+        return httpx.Response(200, json=_places_payload())
+
+    monkeypatch.setattr(osm_features, "_client",
+                        httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    r = client.get("/api/places?bbox=120.8,14.4,121.2,14.8")
+    body = r.json()
+    assert r.status_code == 200
+    assert body["source"] == "osm-overpass"
+    # Unnamed village and non-place node dropped
+    by_name = {f["properties"]["name"]: f["properties"] for f in body["features"]}
+    assert set(by_name) == {"Manila", "Pandacan"}
+
+    manila = by_name["Manila"]
+    assert manila["class"] == "city"
+    assert manila["population"] == 1846513
+    assert manila["capital"] is True
+    assert body["features"][0]["geometry"]["coordinates"] == [120.984, 14.599]
+
+    assert by_name["Pandacan"]["capital"] is False
+    assert by_name["Pandacan"]["population"] is None
+
+    # Query targets place nodes only
+    assert '"place"~"^(city|town|village|borough|suburb|quarter|neighbourhood)$"' in seen["query"]
+
+
+def test_places_invalid_bbox_rejected(client):
+    body = client.get("/api/places").json()
+    assert body["error"] == "missing-or-invalid-bbox"
+    assert body["features"] == []
+
+
+def test_overpass_429_backoff_then_recovers(client, monkeypatch):
+    """A burst of viewport fetches can trip Overpass's rate limiter;
+    the proxy must wait and retry rather than serve an empty map."""
+    hits = {"n": 0}
+
+    def handler(request):
+        hits["n"] += 1
+        if hits["n"] == 1:
+            return httpx.Response(429, headers={"Retry-After": "1"})
+        return httpx.Response(200, json=_places_payload())
+
+    monkeypatch.setattr(osm_features, "_client",
+                        httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    r = client.get("/api/places?bbox=120.8,14.4,121.2,14.8")
+    body = r.json()
+    assert r.status_code == 200
+    assert body["source"] == "osm-overpass"
+    assert len(body["features"]) >= 2
+    assert hits["n"] == 2

@@ -62,7 +62,7 @@ function buildStyle() {
     tiles: ['/tiles/elevation/{z}/{x}/{y}.png'],
     tileSize: 256,
     maxzoom: 18,
-    attribution: 'AURORA-GIS synthetic DEM',
+    attribution: 'NOAH synthetic DEM',
   }
   layers.push({
     id: 'elevation',
@@ -101,21 +101,6 @@ function buildStyle() {
       layout: { visibility: 'none' },
       paint: { 'line-color': '#facc15', 'line-width': 2, 'line-opacity': 0.9 },
     } as unknown as maplibregl.LineLayerSpecification,
-    {
-      id: 'par-label',
-      type: 'symbol',
-      source: 'par',
-      filter: ['==', ['get', 'kind'], 'label'],
-      minzoom: 1,
-      layout: {
-        visibility: 'none',
-        'text-field': ['get', 'name'],
-        'text-size': 12,
-        'text-font': ['Noto Sans Bold'],
-        'text-letter-spacing': 0.25,
-      },
-      paint: { 'text-color': '#fde047', 'text-halo-color': '#422006', 'text-halo-width': 1.6 },
-    } as unknown as maplibregl.SymbolLayerSpecification,
   )
 
   // --- OSM roads + rivers (real geometry via backend Overpass proxy,
@@ -172,12 +157,102 @@ function buildStyle() {
     } as unknown as maplibregl.LineLayerSpecification,
   )
 
+  // --- Place labels (Google Maps style: white text, dark halo, sized
+  // by settlement class, revealed progressively with zoom) ---
+  const placeHalo = ['interpolate', ['linear'], ['zoom'],
+    3, 1.1, 8, 1.4, 14, 1.8] as unknown as maplibregl.ExpressionInputType
+  layers.push(
+    {
+      // Settlement dot beneath the label — Google's satellite-view cue
+      id: 'places-dot',
+      type: 'circle',
+      source: 'places',
+      filter: ['in', ['get', 'class'],
+        ['literal', ['city', 'town', 'village', 'borough', 'suburb',
+                     'quarter', 'neighbourhood']]],
+      minzoom: 5,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['match', ['get', 'class'], 'city', 2.6, 2],
+        'circle-color': '#ffffff',
+        'circle-stroke-color': 'rgba(0,0,0,0.55)',
+        'circle-stroke-width': 1,
+        'circle-opacity': 0.9,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      id: 'places-city',
+      type: 'symbol',
+      source: 'places',
+      filter: ['==', ['get', 'class'], 'city'],
+      minzoom: 3,
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'name'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 3, 12, 8, 14.5, 13, 17],
+        'text-font': ['Noto Sans Bold'],
+        'text-letter-spacing': 0.08,
+        'text-offset': [0, -1.4],
+        'text-anchor': 'bottom',
+      },
+      paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': 'rgba(0,0,0,0.75)',
+        'text-halo-width': placeHalo,
+      },
+    } as unknown as maplibregl.SymbolLayerSpecification,
+    {
+      id: 'places-town',
+      type: 'symbol',
+      source: 'places',
+      filter: ['==', ['get', 'class'], 'town'],
+      minzoom: 6,
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'name'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 6, 10.5, 11, 13, 15, 15],
+        'text-font': ['Noto Sans Bold'],
+        'text-letter-spacing': 0.05,
+        'text-offset': [0, -1.35],
+        'text-anchor': 'bottom',
+      },
+      paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': 'rgba(0,0,0,0.75)',
+        'text-halo-width': placeHalo,
+      },
+    } as unknown as maplibregl.SymbolLayerSpecification,
+    {
+      id: 'places-village',
+      type: 'symbol',
+      source: 'places',
+      filter: ['in', ['get', 'class'],
+        ['literal', ['village', 'borough', 'suburb', 'quarter',
+                     'neighbourhood']]],
+      minzoom: 10,
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'name'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9.5, 15, 13],
+        'text-font': ['Noto Sans Regular'],
+        'text-letter-spacing': 0.03,
+        'text-offset': [0, -1.3],
+        'text-anchor': 'bottom',
+      },
+      paint: {
+        'text-color': '#f1f5f9',
+        'text-halo-color': 'rgba(0,0,0,0.75)',
+        'text-halo-width': placeHalo,
+      },
+    } as unknown as maplibregl.SymbolLayerSpecification,
+  )
+
   // --- Thematic GeoJSON placeholders (data loaded post-style) ---
   const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
   ;['flood-risk', 'rainfall', 'alerts', 'farms', 'weather-stations', 'cyclones',
-    'cyclones-fcst',
-    // roads/waterways: geometry lazy-loaded per viewport on moveend
-    'roads', 'roads-minor', 'waterways'].forEach((id) => {
+    'cyclones-fcst', 'earthquakes',
+    // roads/waterways/places: geometry lazy-loaded per viewport on moveend
+    'roads', 'roads-minor', 'waterways', 'places'].forEach((id) => {
     sources[id] = { type: 'geojson', data: empty }
   })
 
@@ -286,7 +361,13 @@ function buildStyle() {
       source: 'cyclones',
       filter: ['==', ['get', 'kind'], 'track'],
       layout: { visibility: 'none' },
-      paint: { 'line-color': '#f43f5e', 'line-width': 2, 'line-dasharray': [2, 1.5] },
+      paint: {
+        // panahon.gov.ph category palette, keyed on peak PAGASA code
+        'line-color': ['match', ['get', 'pagasa_code_peak'],
+          'TD', '#00e400', 'TS', '#ffe400', 'STS', '#ff9800',
+          'TY', '#ff2020', 'ST', '#e000e0', '#f43f5e'],
+        'line-width': 2, 'line-dasharray': [2, 1.5],
+      },
     } as unknown as maplibregl.LineLayerSpecification,
     {
       id: 'cyclone-pos-circle',
@@ -299,8 +380,11 @@ function buildStyle() {
         // Size by Saffir-Simpson category (-1 TD → 5 Cat5); null-safe via coalesce
         'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'sshs_category'], -1],
           -1, 5, 0, 7, 1, 9, 2, 11, 3, 13, 4, 15, 5, 17],
-        'circle-color': ['step', ['coalesce', ['get', 'wind_kt'], 0],
-          '#fb923c', 34, '#f97316', 64, '#ef4444', 96, '#dc2626'],
+        // PAGASA classification colors (panahon.gov.ph): TD green,
+        // TS yellow, STS orange, TY red, STY magenta; grey fallback
+        'circle-color': ['match', ['get', 'pagasa_code'],
+          'TD', '#00e400', 'TS', '#ffe400', 'STS', '#ff9800',
+          'TY', '#ff2020', 'ST', '#e000e0', '#9aa5b1'],
         'circle-opacity': 0.95,
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 1.5,
@@ -314,7 +398,8 @@ function buildStyle() {
       minzoom: 3,
       layout: {
         visibility: 'none',
-        'text-field': ['get', 'name'],
+        // PAGASA local name leads once the storm is inside the PAR
+        'text-field': ['coalesce', ['get', 'display_name'], ['get', 'name']],
         'text-size': 11,
         'text-font': ['Noto Sans Bold'],
         'text-offset': [0, 1.8],
@@ -334,7 +419,9 @@ function buildStyle() {
       layout: { visibility: 'none' },
       paint: {
         'circle-radius': 0,
-        'circle-color': '#f43f5e',
+        'circle-color': ['match', ['get', 'pagasa_code'],
+          'TD', '#00e400', 'TS', '#ffe400', 'STS', '#ff9800',
+          'TY', '#ff2020', 'ST', '#e000e0', '#f43f5e'],
         'circle-opacity': 0,
       },
     } as unknown as maplibregl.CircleLayerSpecification,
@@ -347,7 +434,9 @@ function buildStyle() {
       layout: { visibility: 'none' },
       paint: {
         'circle-radius': 0,
-        'circle-color': '#f43f5e',
+        'circle-color': ['match', ['get', 'pagasa_code'],
+          'TD', '#00e400', 'TS', '#ffe400', 'STS', '#ff9800',
+          'TY', '#ff2020', 'ST', '#e000e0', '#f43f5e'],
         'circle-opacity': 0,
       },
     } as unknown as maplibregl.CircleLayerSpecification,
@@ -372,9 +461,11 @@ function buildStyle() {
         // Predicted daily positions; size by projected SSHS category
         'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'sshs_category'], -1],
           -1, 4, 0, 6, 1, 8, 2, 10, 3, 12, 4, 14, 5, 16],
-        // Amber TD -> orange TS -> red typhoon -> rose super typhoon
-        'circle-color': ['step', ['coalesce', ['get', 'wind_kt'], 0],
-          '#fbbf24', 34, '#f97316', 64, '#ef4444', 100, '#e11d48'],
+        // PAGASA category colors (panahon.gov.ph) keyed on the daily
+        // day-max classification code emitted by /api/cyclones/forecast
+        'circle-color': ['match', ['get', 'code'],
+          'TD', '#00e400', 'TS', '#ffe400', 'STS', '#ff9800',
+          'TY', '#ff2020', 'ST', '#e000e0', '#9aa5b1'],
         'circle-opacity': 0.9,
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 1,
@@ -396,6 +487,68 @@ function buildStyle() {
         'text-transform': 'uppercase',
       },
       paint: { 'text-color': '#fed7aa', 'text-halo-color': '#431407', 'text-halo-width': 1.4 },
+    } as unknown as maplibregl.SymbolLayerSpecification,
+    // --- Earthquakes: detected events (USGS), magnitude-scaled,
+    // depth-colored; selected event gets a bright ring via 'eq-selected'.
+    {
+      id: 'eq-circle',
+      type: 'circle',
+      source: 'earthquakes',
+      minzoom: 2,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'],
+          ['coalesce', ['get', 'magnitude'], 0],
+          2, 4, 4, 8, 5, 12, 6, 17, 7, 23, 8, 30],
+        // Seismological depth convention: shallow hot -> deep cool
+        'circle-color': ['step', ['coalesce', ['get', 'depth_km'], 0],
+          '#ff2020', 70, '#ff9800', 300, '#38bdf8'],
+        'circle-opacity': 0.55,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.2,
+        'circle-stroke-opacity': ['case',
+          ['boolean', ['feature-state', 'fresh'], false], 1, 0.7],
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      id: 'eq-selected',
+      type: 'circle',
+      source: 'earthquakes',
+      filter: ['==', ['get', 'uid'], ['literal', null]],
+      minzoom: 2,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'],
+          ['coalesce', ['get', 'magnitude'], 0], 2, 10, 6, 26, 8, 38],
+        'circle-color': 'rgba(255,255,255,0)',
+        'circle-stroke-color': '#fbbf24',
+        'circle-stroke-width': 2.5,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      // Magnitude label above each marker ("M 4.8"), Google-style
+      // white-on-dark-halo so it reads over satellite imagery
+      id: 'eq-label',
+      type: 'symbol',
+      source: 'earthquakes',
+      minzoom: 3,
+      layout: {
+        visibility: 'none',
+        'text-field': ['case',
+          ['!=', ['get', 'magnitude'], null],
+          ['concat', 'M ', ['to-string', ['get', 'magnitude']]],
+          'M ?'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 3, 9.5, 7, 11.5, 12, 13],
+        'text-font': ['Noto Sans Bold'],
+        'text-offset': [0, -1.15],
+        'text-anchor': 'bottom',
+        'text-letter-spacing': 0.04,
+      },
+      paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': 'rgba(0,0,0,0.8)',
+        'text-halo-width': 1.4,
+      },
     } as unknown as maplibregl.SymbolLayerSpecification,
     {
       id: 'farms-fill',
@@ -668,6 +821,19 @@ export function useMap(containerRef: React.RefObject<HTMLDivElement | null>) {
       const drawState = useDrawingStore.getState()
       if (drawState.activeTool) {
         handleDrawClick(map, e.lngLat.lng, e.lngLat.lat)
+        return
+      }
+
+      const eqHits = map.queryRenderedFeatures(e.point, { layers: ['eq-circle'] })
+      if (eqHits.length > 0) {
+        const uid = eqHits[0].properties?.uid as string | undefined
+        if (uid) {
+          map.setFilter('eq-selected', ['==', ['get', 'uid'], uid])
+          useUIStore.getState().setEqSelectedUid(uid)
+          if (!useUIStore.getState().eqPanelOpen) {
+            useUIStore.getState().toggleEqPanel()
+          }
+        }
         return
       }
 

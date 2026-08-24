@@ -1,5 +1,5 @@
 """
-Layered tile cache for AURORA-GIS.
+Layered tile cache for NOAH.
 
 Order of operations on get():
     1. In-process LRU memory   (fastest, per-worker)
@@ -18,7 +18,7 @@ import os
 import time
 from collections import OrderedDict
 
-logger = logging.getLogger("aurora.cache")
+logger = logging.getLogger("noah.cache")
 
 try:
     import redis.asyncio as aioredis
@@ -111,7 +111,7 @@ class RedisCache:
         if not self.available:
             return None
         try:
-            return await self._client.get(f"aurora:{key}")
+            return await self._client.get(f"noah:{key}")
         except Exception:
             self.available = False
             return None
@@ -120,7 +120,7 @@ class RedisCache:
         if not self.available:
             return
         try:
-            await self._client.setex(f"aurora:{key}", ttl, value)
+            await self._client.setex(f"noah:{key}", ttl, value)
         except Exception:
             self.available = False
 

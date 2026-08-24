@@ -25,7 +25,7 @@ async def get_tile(product: str, z: int, x: int, y: int,
             product, z, x, y, time, request.app.state.cache, palette=palette)
         return Response(content=data, media_type="image/png", headers={
             "Cache-Control": "public, max-age=86400",
-            "X-Aurora-Source": source,
+            "X-Noah-Source": source,
         })
     svc: TileService = _tile_service(request)
     data = await svc.get_tile(product, z, x, y, time)

@@ -1,7 +1,7 @@
-# AURORA-GIS
+# NOAH
 
-**Interactive satellite GIS platform — Google Maps / Google Earth-style usability with
-scientifically honest satellite data reporting.**
+**Nationwide Operational Assessment of Hazards — Google Maps / Google Earth-style usability
+with scientifically honest satellite data reporting.**
 
 The map is the primary interface: a large, continuously zoomable MapLibre GL map with
 dashboards and analytics surrounding it.
@@ -84,8 +84,22 @@ The browser never downloads a full raster — each pan/zoom requests the handful
 | Esri World Imagery *(real)* | Maxar composite | ~1 m | z18 | static mosaic |
 | Sentinel-2 Cloudless *(real)* | Copernicus S2 | ~10 m | z13 | annual mosaic |
 
-### Active cyclone tracks
+### Earthquake intelligence module (`docs/earthquake/`)
 
+Real-time earthquake detection & monitoring — the first module of a broader
+hazard-intelligence architecture. USGS FDSN feed ingested by a background
+worker (configurable bbox/magnitude/interval, exponential backoff, provider
+health), normalized + deduplicated into SQLite, pushed to the map over SSE,
+and evaluated against configurable alert rules (M≥5/6/7 defaults, plus a
+150 km radius around Aurora Province). Map layer is magnitude-scaled and
+depth-colored; the **Quakes** panel shows LIVE/STALE provider health, live
+statistics, magnitude histogram, filters and event details.
+
+These are **detected events only** — the system does not forecast or predict
+earthquakes. PHIVOLCS ships as a provider stub awaiting an official
+machine-readable source; see `docs/earthquake/DATA-SOURCES.md`.
+
+### Active cyclone tracks
 `GET /api/cyclones` returns a GeoJSON FeatureCollection of storms active
 in the last N days (default 7): one LineString of past positions plus a
 latest-position Point per storm (wind kt, SSHS category, pressure,
@@ -95,6 +109,14 @@ empty set when NOAA NCEI is unreachable. Cadence disclosure: IBTrACS is
 a best-track archive refreshed roughly three times weekly — it shows
 where storms *have been* with agency-merged intensity, not operational
 forecast cones. Toggle via **Layers → Cyclone Tracks**.
+
+**PAGASA naming**: storms that enter the Philippine Area of Responsibility
+carry the official PAGASA local name of their entry year's rotating set
+(`year mod 4`, 25 regular + 10 auxiliary names, list as revised Jan 2022 /
+Jan 2025). Assignment is chronological by PAR-entry order; because
+IBTrACS exposes only the recent window, the sequence is an *estimate* —
+the payload's `naming` field says so. Map labels lead with the PAGASA
+name (`BASYANG (INTERNATIONAL)`) once assigned.
 
 ### Cyclone outlook, clouds & PAR
 
@@ -122,7 +144,7 @@ forecast cones. Toggle via **Layers → Cyclone Tracks**.
 The four `· Live` products are proxied through
 `/tiles/{product}/{z}/{x}/{y}.png` from
 `gibs.earthdata.nasa.gov` WMTS (EPSG:3857, 10-minute time dimension,
-rolling ~23-day window). Every tile carries an `X-Aurora-Source` header:
+rolling ~23-day window). Every tile carries an `X-Noah-Source` header:
 
 | Source | Meaning |
 |--------|---------|
@@ -152,7 +174,7 @@ No artificial detail is implied by digital zoom.
 
 Esri World Imagery answers HTTP 200 with a baked-in placeholder JPEG
 ("Map data not yet available.") wherever coverage ends — typically z17–18 in rural
-areas. AURORA-GIS proxies Esri tiles through `/tiles/esri/{z}/{x}/{y}.jpg`:
+areas. NOAH proxies Esri tiles through `/tiles/esri/{z}/{x}/{y}.jpg`:
 
 1. Each tile is fetched once, analyzed (tiny + near-uniform bright pixels = placeholder),
    and cached — real imagery **and** "empty" verdicts alike.
@@ -204,7 +226,7 @@ at every level.
 | 3 | Raster/vector/GeoJSON/WMS-ready stack | MapLibre sources in `useMap.ts` |
 | 4 | PH drill-down workflow | Admin hierarchy + label zoom bands |
 | 5 | Base-map switcher + independent satellite overlay | `TopBar.tsx`, `mapConfig.ts` |
-| 6 | Layer panel: toggle, opacity, ordering, metadata, legend; last layer sequence (order/visibility/opacity) restored across reloads via localStorage (`aurora-gis.layers.v1`) | `LayerPanel.tsx`, `stores/index.ts` |
+| 6 | Layer panel: toggle, opacity, ordering, metadata, legend; last layer sequence (order/visibility/opacity) restored across reloads via localStorage (`noah.layers.v1`) | `LayerPanel.tsx`, `stores/index.ts` |
 | 7 | Click-to-inspect | `InspectPanel.tsx` + `/api/inspect` |
 | 8 | Time machine preserving extent during animation | `TimeMachine.tsx` |
 | 9 | Preload + cache + crossfade animation | Image() preloading, `raster-fade-duration`, server cache |

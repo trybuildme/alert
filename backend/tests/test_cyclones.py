@@ -201,3 +201,47 @@ def test_response_is_cached_across_calls(client, monkeypatch):
     client.get("/api/cyclones")
     client.get("/api/cyclones")
     assert hits["n"] == 1
+
+
+def test_pagasa_names_assigned_on_par_entry(client, monkeypatch):
+    """Storms entering the PAR get PAGASA names in chronological entry
+    order (2026 = Set II: ADA, BASYANG, ...); storms outside stay
+    international-only."""
+    rows = (
+        _storm("2026001", "MYSURG", "WP", [
+            ("2026-08-18 00:00:00", "12.0", "141.0", "35"),
+            ("2026-08-19 00:00:00", "14.0", "133.0", "45"),   # enters PAR
+            ("2026-08-20 00:00:00", "16.0", "128.0", "55"),
+        ])
+        + _storm("2026002", "SECOND", "WP", [
+            ("2026-08-19 00:00:00", "10.0", "139.0", "30"),
+            ("2026-08-20 06:00:00", "11.0", "131.0", "40"),   # enters later
+        ])
+        + _storm("2026003", "NEVERPAR", "WP", [
+            ("2026-08-19 00:00:00", "8.0", "150.0", "30"),
+        ])
+    )
+    _mock(monkeypatch, rows)
+    body = client.get("/api/cyclones").json()
+    assert body["naming"] == cyclones.NAMING_DISCLOSURE
+
+    props = {f["properties"]["name"]: f["properties"]
+             for f in body["features"] if f["properties"]["kind"] == "position"}
+
+    assert props["MYSURG"]["pagasa_name"] == "ADA"
+    assert props["MYSURG"]["in_par"] is True
+    assert props["MYSURG"]["display_name"] == "ADA (MYSURG)"
+    # PAGASA classification codes (panahon.gov.ph scheme)
+    assert props["MYSURG"]["pagasa_code"] == "STS"        # 55 kt
+    assert props["MYSURG"]["pagasa_code_peak"] == "STS"
+    assert props["NEVERPAR"]["pagasa_code"] == "TD"       # 30 kt
+    assert props["NEVERPAR"]["pagasa_code_peak"] == "TD"
+
+    # Chronological PAR-entry order: SECOND entered after MYSURG
+    assert props["SECOND"]["pagasa_name"] == "BASYANG"
+    assert props["SECOND"]["in_par"] is True
+    assert props["SECOND"]["pagasa_code"] == "TS"         # 40 kt
+
+    assert props["NEVERPAR"]["pagasa_name"] is None
+    assert props["NEVERPAR"]["in_par"] is False
+    assert props["NEVERPAR"]["display_name"] == "NEVERPAR"

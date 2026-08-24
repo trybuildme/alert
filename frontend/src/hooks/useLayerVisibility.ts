@@ -4,6 +4,7 @@ import { useLayerStore, useUIStore } from '../stores'
 
 const LAYER_IDS: Record<string, string[]> = {
   satellite: [],
+  'place-labels': ['places-dot', 'places-city', 'places-town', 'places-village'],
   'admin-boundaries': [
     'admin-islands-line', 'admin-regions-line', 'admin-provinces-line',
     'admin-municipalities-line', 'admin-barangays-line',
@@ -25,7 +26,8 @@ const LAYER_IDS: Record<string, string[]> = {
   ],
   'cyclone-forecast': ['cyclone-fcst-line', 'cyclone-fcst-circle', 'cyclone-fcst-label'],
   'cyclone-clouds': ['cyclone-clouds-raster'],
-  par: ['par-line', 'par-label'],
+  earthquakes: ['eq-circle', 'eq-selected', 'eq-label'],
+  par: ['par-line'],
 }
 
 export function useLayerVisibility(map: maplibregl.Map | null) {
@@ -55,11 +57,14 @@ export function useLayerVisibility(map: maplibregl.Map | null) {
       const st = useLayerStore.getState().layers
       const wantRoads = st.find((l) => l.id === 'roads')?.visible
       const wantRivers = st.find((l) => l.id === 'rivers')?.visible
-      if (!wantRoads && !wantRivers) return
+      const wantPlaces = st.find((l) => l.id === 'place-labels')?.visible
+      if (!wantRoads && !wantRivers && !wantPlaces) return
       const b = map.getBounds()
       const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
         .map((v) => v.toFixed(3)).join(',')
       const z = map.getZoom()
+      // Place labels stay useful from country zoom upward — fetch early
+      if (wantPlaces && z >= 4) fill('places', `/api/places?bbox=${bbox}`)
       if (wantRoads && z >= 6) fill('roads', `/api/roads?bbox=${bbox}&tier=major`)
       if (wantRoads && z >= 13) fill('roads-minor', `/api/roads?bbox=${bbox}&tier=minor`)
       if (wantRivers && z >= 8) fill('waterways', `/api/waterways?bbox=${bbox}`)

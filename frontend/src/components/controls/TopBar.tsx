@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useSatelliteStore, useUIStore, useInspectStore, useLayerStore } from '../../stores'
 import { ALL_PRODUCTS, BASEMAPS } from '../../config/mapConfig'
+import NotificationBell from './NotificationBell'
 
 interface SearchResult {
   name: string
@@ -18,6 +19,8 @@ export default function TopBar() {
   const { basemap, setBasemap, mode2D, setMode2D } = useUIStore()
   const forecastPanelOpen = useUIStore((s) => s.forecastPanelOpen)
   const toggleForecastPanel = useUIStore((s) => s.toggleForecastPanel)
+  const eqPanelOpen = useUIStore((s) => s.eqPanelOpen)
+  const toggleEqPanel = useUIStore((s) => s.toggleEqPanel)
   const openInspect = useInspectStore((s) => s.openInspect)
 
   return (
@@ -25,8 +28,8 @@ export default function TopBar() {
       <div className="topbar-brand">
         <span className="brand-mark" />
         <div>
-          <div className="brand-name">AURORA-GIS</div>
-          <div className="brand-sub">Interactive Satellite Platform</div>
+          <div className="brand-name">NOAH</div>
+          <div className="brand-sub">Nationwide Operational Assessment of Hazards</div>
         </div>
       </div>
 
@@ -82,6 +85,22 @@ export default function TopBar() {
       </div>
 
       <div className="topbar-group">
+        <span className="group-label">HAZARD</span>
+        <button
+          className={`switch-btn ${eqPanelOpen ? 'active' : ''}`}
+          onClick={() => {
+            toggleEqPanel()
+            const ls = useLayerStore.getState()
+            const eq = ls.layers.find((x) => x.id === 'earthquakes')
+            if (eq && !eq.visible) ls.toggle('earthquakes')
+          }}
+          title="Real-time earthquake monitor: detected events from USGS — live map, alerts, statistics"
+        >
+          Quakes
+        </button>
+      </div>
+
+      <div className="topbar-group">
         <span className="group-label">TROPICAL</span>
         <button
           className={`switch-btn ${forecastPanelOpen ? 'active' : ''}`}
@@ -103,6 +122,8 @@ export default function TopBar() {
         <button className={!mode2D ? 'active' : ''} onClick={() => setMode2D(false)}>3D EARTH</button>
         <button className={mode2D ? 'active' : ''} onClick={() => setMode2D(true)}>2D MAP</button>
       </div>
+
+      <NotificationBell />
     </header>
   )
 }

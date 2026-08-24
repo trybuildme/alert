@@ -104,7 +104,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '1 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'AURORA-GIS synthetic Himawari-class feed',
+    attribution: 'NOAH synthetic Himawari-class feed',
   },
   {
     id: 'infrared',
@@ -119,7 +119,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '2 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'AURORA-GIS synthetic Himawari-class feed',
+    attribution: 'NOAH synthetic Himawari-class feed',
   },
   {
     id: 'water-vapor',
@@ -134,7 +134,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '2 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'AURORA-GIS synthetic Himawari-class feed',
+    attribution: 'NOAH synthetic Himawari-class feed',
   },
   {
     id: 'cloud-temp',
@@ -149,7 +149,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '2 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'AURORA-GIS synthetic Himawari-class feed',
+    attribution: 'NOAH synthetic Himawari-class feed',
   },
 ]
 
@@ -174,7 +174,7 @@ export const REAL_IMAGERY: SatelliteProduct[] = [
     name: 'Esri World Imagery',
     satellite: 'Esri/Maxar composite',
     color: '#eab308',
-    // Proxied through AURORA-GIS: placeholder tiles ("Map data not yet
+    // Proxied through NOAH: placeholder tiles ("Map data not yet
     // available.") are detected and dropped, revealing the S2 underlay.
     tiles: () => ['/tiles/esri/{z}/{x}/{y}.jpg'],
     tileSize: 256,
@@ -259,11 +259,6 @@ export const PAR_FEATURES: GeoJSON.FeatureCollection = {
           [135, 25], [135, 5], [115, 5],
         ]],
       },
-    },
-    {
-      type: 'Feature',
-      properties: { kind: 'label', name: 'PAR' },
-      geometry: { type: 'Point', coordinates: [129.5, 22.5] },
     },
   ],
 }

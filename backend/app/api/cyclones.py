@@ -16,6 +16,10 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from fastapi import APIRouter
 
+from app.services.pagasa import (NAMING_DISCLOSURE, assign_pagasa_names,
+                                 display_name, par_entry_time, point_in_par,
+                                 tc_code)
+
 IBTRACS_ACTIVE_URL = ("https://www.ncei.noaa.gov/data/"
                       "international-best-track-archive-for-climate-"
                       "stewardship-ibtracs/v04r01/access/csv/"
@@ -159,6 +163,13 @@ async def fetch_active_storms(days: int = 7) -> dict:
 
     features = []
     fetched_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # PAGASA local naming: storms that entered PAR get the next free
+    # name of the entry year's rotating set, in chronological order.
+    par_entries = [(sid, t) for sid, obs0 in storms.items()
+                   if (t := par_entry_time(obs0)) is not None]
+    pagasa_names = assign_pagasa_names(par_entries)
+
     for sid, obs in storms.items():
         obs.sort(key=lambda r: r["_dt"])
         name = obs[-1].get("NAME", "").strip() or "UNNAMED"
@@ -168,6 +179,14 @@ async def fetch_active_storms(days: int = 7) -> dict:
         cats = [c for c in (_sshs_category(r) for r in obs) if c is not None]
         last = obs[-1]
         r34_nm = _radius34_nm(last)
+        pagasa = pagasa_names.get(sid)
+        # PAGASA classification codes (panahon.gov.ph scheme): current
+        # fix for positions/extents, peak in window for the track line.
+        code_now = tc_code(_wind_kt(last))
+        winds_with_idx = [(w, r) for w, r in zip((_wind_kt(r) for r in obs), obs)
+                          if w is not None]
+        code_peak = tc_code(max((w for w, _ in winds_with_idx),
+                                default=None)) if winds_with_idx else None
 
         common = {
             "sid": sid,
@@ -178,6 +197,10 @@ async def fetch_active_storms(days: int = 7) -> dict:
             "last_fix": last["_dt"].strftime("%Y-%m-%dT%H:%M:%SZ"),
             "max_wind_kt": max(winds) if winds else None,
             "max_sshs_category": max(cats) if cats else None,
+            "in_par": point_in_par(coords[-1][0], coords[-1][1]),
+            "pagasa_name": pagasa,
+            "display_name": display_name(name, pagasa),
+            "pagasa_code_peak": code_peak,
         }
         features.append({
             "type": "Feature",
@@ -193,6 +216,7 @@ async def fetch_active_storms(days: int = 7) -> dict:
                 "lat": _num(last["LAT"]),
                 "lon": _num(last["LON"]),
                 "wind_kt": _wind_kt(last),
+                "pagasa_code": code_now,
                 "pressure_hpa": _pressure_hpa(last),
                 "sshs_category": _sshs_category(last),
                 "dist2land_km": _num(last.get("DIST2LAND")),
@@ -225,6 +249,7 @@ async def fetch_active_storms(days: int = 7) -> dict:
         # Honest cadence note surfaced by the UI legend
         "update_cadence": "best-track archive, refreshed ~3x weekly "
                           "(not an operational warning feed)",
+        "naming": NAMING_DISCLOSURE,
     }
     _cache.update(ts=now, days=days, payload=payload)
     return payload

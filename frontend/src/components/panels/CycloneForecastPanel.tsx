@@ -25,7 +25,9 @@ function StormCard({ storm }: { storm: ForecastStorm }) {
   return (
     <div className="fc-storm">
       <div className="fc-head">
-        <span className="fc-name">{storm.name}</span>
+        <span className="fc-name">
+          {storm.pagasa_name ? `${storm.pagasa_name} (${storm.name})` : storm.name}
+        </span>
         {cur?.status && (
           <span className={`fc-now ${cur.status === 'Super Typhoon' ? 'status-sty' : ''}`}>
             NOW: {cur.status.toUpperCase()}

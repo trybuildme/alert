@@ -28,16 +28,18 @@ _TTL_SECONDS = 7 * 86400
 # Grid snap (degrees): identical rounded viewports share cache entries
 _SNAP = 0.05
 # Max viewport span per request class (degrees)
-_MAX_SPAN = {"major": 2.0, "minor": 0.6, "water": 0.6}
+_MAX_SPAN = {"major": 2.0, "minor": 0.6, "water": 0.6, "places": 3.0}
 
 _ROAD_CLASSES = {
     "major": "motorway|trunk|primary|secondary",
     "minor": "tertiary|unclassified|track",
 }
 _WATER_CLASSES = "river|stream|canal|drain"
+_PLACE_CLASSES = ("city", "town", "village", "borough", "suburb", "quarter",
+                  "neighbourhood")
 
 _CACHE_DIR = Path(os.environ.get(
-    "AURORA_OSM_CACHE_DIR", "/tmp/opencode/aurora-osm-cache"))
+    "NOAH_OSM_CACHE_DIR", "/tmp/opencode/noah-osm-cache"))
 
 
 def _parse_bbox(raw: str | None, max_span: float) -> tuple[float, float, float, float] | None:
@@ -120,9 +122,21 @@ async def _fetch_overpass(query: str) -> dict | None:
             # bare python-httpx default agent.
             _client = httpx.AsyncClient(
                 timeout=120,
-                headers={"User-Agent": "AURORA-GIS/1.0 (local hazard dashboard)"})
+                headers={"User-Agent": "NOAH/1.0 (local hazard dashboard)"})
         resp = await _client.post(_OVERPASS_URL, content=query,
                                   headers={"Content-Type": "text/plain"})
+        # Overpass rate-limits bursts of viewport fetches (429); back
+        # off briefly instead of degrading to an empty map. A page load
+        # can fire several place/road requests at once.
+        import asyncio
+        for wait_s in (2.0, 6.0):
+            if resp.status_code != 429:
+                break
+            retry_after = resp.headers.get("Retry-After", "")
+            delay = float(retry_after) if retry_after.replace(".", "", 1).isdigit() else wait_s
+            await asyncio.sleep(min(delay, 10.0))
+            resp = await _client.post(_OVERPASS_URL, content=query,
+                                      headers={"Content-Type": "text/plain"})
         resp.raise_for_status()
         return resp.json()
     except Exception:
@@ -164,3 +178,58 @@ async def waterways(bbox: str | None = None) -> dict:
     """Rivers, streams, canals, drains within the given viewport."""
     return await _get_features("waterways", "waterway", _WATER_CLASSES,
                                bbox, _MAX_SPAN["water"])
+
+
+async def _get_places(bbox_raw: str | None) -> dict:
+    """OSM settlement nodes (city/town/village/...) for place labels."""
+    empty = {"type": "FeatureCollection", "features": [],
+             "source": "unavailable"}
+    bbox = _parse_bbox(bbox_raw, _MAX_SPAN["places"])
+    if bbox is None:
+        return {**empty, "error": "missing-or-invalid-bbox"}
+    w, s, e, n = bbox
+    key = f"places_{w:.2f}_{s:.2f}_{e:.2f}_{n:.2f}"
+    cached = _load_cached(key)
+    if cached is not None:
+        return cached
+    cls = "|".join(_PLACE_CLASSES)
+    query = (f"[out:json][timeout:90];"
+             f'node["place"~"^({cls})$"]({s},{w},{n},{e});out;')
+    data = await _fetch_overpass(query)
+    if data is None:
+        return empty
+    features = []
+    for el in data.get("elements", []):
+        lat, lon = el.get("lat"), el.get("lon")
+        tags = el.get("tags", {})
+        name = (tags.get("name") or "").strip()
+        if tags.get("place") not in _PLACE_CLASSES or not name:
+            continue
+        if lat is None or lon is None:
+            continue
+        pop = tags.get("population")
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "osm_id": el.get("id"),
+                "class": tags.get("place", ""),
+                "name": name,
+                "population": int(pop) if pop and pop.isdigit() else None,
+                # Capital markers rank above ordinary cities on Google Maps
+                "capital": tags.get("place") == "city"
+                           and tags.get("capital", "") == "yes",
+            },
+            "geometry": {"type": "Point",
+                         "coordinates": [round(lon, 6), round(lat, 6)]},
+        })
+    payload = {"type": "FeatureCollection", "features": features,
+               "source": "osm-overpass"}
+    _store_cache(key, payload)
+    return payload
+
+
+@router.get("/places")
+async def places(bbox: str | None = None) -> dict:
+    """Named OSM settlements (cities, towns, villages, districts)
+    within the given viewport — the raw material for map labels."""
+    return await _get_places(bbox)

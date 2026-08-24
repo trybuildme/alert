@@ -18,6 +18,8 @@ from fastapi import APIRouter
 
 from app.api.cyclones import (_num, _radius34_nm, _wind_kt,
                               fetch_recent_fixes)
+from app.services.pagasa import (NAMING_DISCLOSURE, assign_pagasa_names,
+                                 par_entry_time, tc_code)
 
 router = APIRouter(prefix="/api")
 
@@ -187,6 +189,7 @@ def forecast_daily(fixes: list[dict], horizon_days: int = 7) -> dict | None:
             "wind_kt": round(wind_max) if wind_max is not None else None,
             "wind_kmh": round(wind_max * 1.852) if wind_max is not None else None,
             "status": pagasa_status(wind_max),
+            "code": tc_code(wind_max),
             "signal_no": signal_number(wind_max),
             "sshs_category": sshs_category(wind_max),
         })
@@ -229,6 +232,9 @@ async def build_forecast(days: int = 7, horizon_days: int = 7) -> dict:
     }
     if storms is None:
         return {"source": "unavailable", **base}
+    pagasa_names = assign_pagasa_names(
+        [(sid, t) for sid, fixes0 in storms.items()
+         if (t := par_entry_time(fixes0)) is not None])
     out = []
     for sid, fixes in storms.items():
         fc = forecast_daily(fixes, horizon_days)
@@ -237,13 +243,14 @@ async def build_forecast(days: int = 7, horizon_days: int = 7) -> dict:
         out.append({
             "sid": sid,
             "name": fixes[-1].get("NAME", "").strip() or "UNNAMED",
+            "pagasa_name": pagasa_names.get(sid),
             "basin": fixes[-1].get("BASIN", "").strip(),
             "n_obs": len(fixes),
             **fc,
         })
     out.sort(key=lambda s: s["name"])
     return {"source": "ibtracs-active-v04r01 + linear-extrapolation",
-            **base, "storms": out}
+            "naming": NAMING_DISCLOSURE, **base, "storms": out}
 
 
 @router.get("/cyclones/forecast")

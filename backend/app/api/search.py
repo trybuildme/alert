@@ -16,7 +16,7 @@ from fastapi import APIRouter, Query, Request
 
 from app.data.ph_admin import search_index
 
-logger = logging.getLogger("aurora.search")
+logger = logging.getLogger("noah.search")
 
 router = APIRouter(prefix="/api")
 
@@ -34,7 +34,7 @@ def _get_client() -> httpx.AsyncClient:
     if _client is None:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(5.0, connect=3.0),
-            headers={"User-Agent": "AURORA-GIS/1.0 (geographic search)"},
+            headers={"User-Agent": "NOAH/1.0 (geographic search)"},
         )
     return _client
 

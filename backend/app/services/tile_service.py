@@ -1,5 +1,5 @@
 """
-AURORA-GIS multi-resolution raster tile service.
+NOAH multi-resolution raster tile service.
 
 Architecture (requirement #2/#14):
 

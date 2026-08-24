@@ -58,6 +58,8 @@ export interface LayerInfo {
 
 const INITIAL_LAYERS: LayerInfo[] = [
   { id: 'satellite', name: 'Satellite', description: 'Active satellite product', visible: true, opacity: 1 },
+  { id: 'place-labels', name: 'Place Labels', description: 'City, town and village names (Google Maps style) — OSM settlements per viewport', visible: true, opacity: 1,
+    legend: [{ label: 'City', color: '#ffffff' }, { label: 'Town', color: '#f8fafc' }, { label: 'Village / district', color: '#f1f5f9' }] },
   { id: 'admin-boundaries', name: 'Administrative Boundaries', description: 'Region → province → municipality → barangay hierarchy', visible: true, opacity: 1 },
   {
     id: 'roads', name: 'Roads', description: 'OSM major roads and farm tracks', visible: false, opacity: 1,
@@ -79,23 +81,32 @@ const INITIAL_LAYERS: LayerInfo[] = [
   { id: 'rainfall', name: 'Rainfall', description: '3-hour accumulated rainfall estimate', visible: false, opacity: 0.75, legend: [{ label: '< 5 mm', color: '#bae6fd' }, { label: '5–15 mm', color: '#38bdf8' }, { label: '> 15 mm', color: '#1d4ed8' }] },
   { id: 'alerts', name: 'Alerts', description: 'Active weather and crop alerts', visible: false, opacity: 1, legend: [{ label: 'Active alert zone', color: '#fb923c' }] },
   {
-    id: 'cyclones', name: 'Cyclone Tracks', description: 'Active tropical cyclones — NOAA IBTrACS best-track (~3× weekly, not operational warnings)', visible: false, opacity: 1,
+    id: 'earthquakes', name: 'Earthquakes · Live', description: 'Detected events from USGS feeds (PH region focus) — real-time, not forecasts or predictions', visible: true, opacity: 1,
     legend: [
-      { label: 'Track (past positions)', color: '#f43f5e' },
-      { label: '34-kt wind radius', color: '#fb7185' },
-      { label: 'Tropical storm', color: '#f59e0b' },
-      { label: 'Typhoon ≥64 kt', color: '#ef4444' },
-      { label: 'Major ≥96 kt', color: '#dc2626' },
+      { label: 'Shallow < 70 km', color: '#ff2020' },
+      { label: 'Intermediate 70–300 km', color: '#ff9800' },
+      { label: 'Deep > 300 km', color: '#38bdf8' },
     ],
   },
   {
-    id: 'cyclone-forecast', name: 'Cyclone Forecast · 7-Day', description: 'Naive persistence extrapolation of best-track motion — NOT an official PAGASA/JTWC forecast', visible: false, opacity: 1,
+    id: 'cyclones', name: 'Cyclone Tracks', description: 'Active tropical cyclones — NOAA IBTrACS best-track (~3× weekly, not operational warnings). Colors per PAGASA / panahon.gov.ph classification', visible: false, opacity: 1,
+    legend: [
+      { label: 'Tropical Depression', color: '#00e400' },
+      { label: 'Tropical Storm', color: '#ffe400' },
+      { label: 'Severe Tropical Storm', color: '#ff9800' },
+      { label: 'Typhoon', color: '#ff2020' },
+      { label: 'Super Typhoon', color: '#e000e0' },
+    ],
+  },
+  {
+    id: 'cyclone-forecast', name: 'Cyclone Forecast · 7-Day', description: 'Naive persistence extrapolation of best-track motion — NOT an official PAGASA/JTWC forecast. Colors per PAGASA / panahon.gov.ph classification', visible: false, opacity: 1,
     legend: [
       { label: 'Predicted track', color: '#fb923c' },
-      { label: 'Depression <34 kt', color: '#fbbf24' },
-      { label: 'Storm ≥34 kt', color: '#f97316' },
-      { label: 'Typhoon ≥64 kt', color: '#ef4444' },
-      { label: 'Super Typhoon ≥100 kt', color: '#e11d48' },
+      { label: 'Tropical Depression', color: '#00e400' },
+      { label: 'Tropical Storm', color: '#ffe400' },
+      { label: 'Severe Tropical Storm', color: '#ff9800' },
+      { label: 'Typhoon', color: '#ff2020' },
+      { label: 'Super Typhoon', color: '#e000e0' },
     ],
   },
   {
@@ -103,7 +114,7 @@ const INITIAL_LAYERS: LayerInfo[] = [
     legend: [{ label: 'IR cloud tops', color: '#94a3b8' }],
   },
   {
-    id: 'par', name: 'Philippine Area of Responsibility', description: 'PAGASA PAR boundary: 5°N 115°E → 15°N 115°E → 21°N 120°E → 25°N 120°E → 25°N 135°E → 5°N 135°E', visible: false, opacity: 1,
+    id: 'par', name: 'Philippine Area of Responsibility', description: 'PAGASA PAR boundary: 5°N 115°E → 15°N 115°E → 21°N 120°E → 25°N 120°E → 25°N 135°E → 5°N 135°E', visible: true, opacity: 1,
     legend: [{ label: 'PAR boundary (solid)', color: '#facc15' }],
   },
 ]
@@ -122,7 +133,10 @@ interface LayerState {
 // persisted — it always comes fresh from INITIAL_LAYERS so code changes
 // propagate; only user intent (visible/opacity/order) is restored. Layers
 // unknown to the stored snapshot keep their defaults.
-const LAYER_STORAGE_KEY = 'aurora-gis.layers.v1'
+// v2: bumped 2026-08-24 so pre-existing snapshots (saved while PAR
+// defaulted to off) stop overriding the new defaults. Users keep their
+// toggles from here forward.
+const LAYER_STORAGE_KEY = 'noah.layers.v2'
 
 type SavedLayerState = { visible?: boolean; opacity?: number }
 
@@ -378,6 +392,9 @@ interface UIState {
   gpsError: string | null
   forecastPanelOpen: boolean
   forecastMeta: { generatedAt: string | null; methodology: string | null; unavailable: boolean }
+  eqPanelOpen: boolean
+  eqMinMag: number
+  eqSelectedUid: string | null
   setBasemap: (b: string) => void
   setMode2D: (v: boolean) => void
   toggleLayerPanel: () => void
@@ -385,6 +402,9 @@ interface UIState {
   setGpsFix: (accuracyM: number | null, error?: string | null) => void
   toggleForecastPanel: () => void
   setForecastMeta: (m: { generatedAt: string | null; methodology: string | null; unavailable: boolean }) => void
+  toggleEqPanel: () => void
+  setEqMinMag: (v: number) => void
+  setEqSelectedUid: (uid: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -403,4 +423,10 @@ export const useUIStore = create<UIState>((set) => ({
   setGpsFix: (accuracyM, error = null) => set({ gpsAccuracyM: accuracyM, gpsError: error }),
   toggleForecastPanel: () => set((s) => ({ forecastPanelOpen: !s.forecastPanelOpen })),
   setForecastMeta: (forecastMeta) => set({ forecastMeta }),
+  eqPanelOpen: false,
+  eqMinMag: 2.5,
+  eqSelectedUid: null,
+  toggleEqPanel: () => set((s) => ({ eqPanelOpen: !s.eqPanelOpen })),
+  setEqMinMag: (eqMinMag) => set({ eqMinMag }),
+  setEqSelectedUid: (eqSelectedUid) => set({ eqSelectedUid }),
 }))

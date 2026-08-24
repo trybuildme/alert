@@ -140,7 +140,7 @@ async def inspect(
             "data_age_minutes": data_age_min,
             "data_source": ("NASA GIBS live Himawari-9 AHI (gibs.earthdata.nasa.gov)"
                             if meta.get("source") == "gibs" else
-                            "AURORA-GIS tile service (synthetic Himawari-class feed)"),
+                            "NOAH tile service (synthetic Himawari-class feed)"),
         },
         "agriculture": {
             "ndvi_estimate": ndvi,

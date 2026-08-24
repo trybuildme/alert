@@ -1,5 +1,5 @@
 """
-Philippine administrative hierarchy for AURORA-GIS.
+Philippine administrative hierarchy for NOAH.
 
 Used by: geographic search (#17), admin drill-down workflow (#4),
 administrative boundary layers (#6), click-to-inspect context (#7).

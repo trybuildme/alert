@@ -10,6 +10,7 @@ export interface ForecastDay {
   wind_kt: number | null
   wind_kmh: number | null
   status: string | null
+  code?: string | null         // PAGASA classification code (TD/TS/STS/TY/ST)
   signal_no: number | null  // PAGASA TCWS 0..5 implied by day-max winds
   sshs_category: number | null
 }
@@ -17,6 +18,7 @@ export interface ForecastDay {
 export interface ForecastStorm {
   sid: string
   name: string
+  pagasa_name?: string | null
   basin?: string
   n_obs?: number
   last_fix?: string
@@ -131,6 +133,7 @@ export function forecastToFC(storms: ForecastStorm[]): GeoJSON.FeatureCollection
           date: d.date,
           label: `${d.day.slice(0, 3).toUpperCase()} ${d.date.slice(5)} · SIG ${d.signal_no ?? '—'}`,
           status: d.status,
+          code: d.code ?? null,
           signal_no: d.signal_no,
           wind_kt: d.wind_kt,
           wind_kmh: d.wind_kmh,
