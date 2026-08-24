@@ -109,7 +109,8 @@ async def nominatim_search(q: str, limit: int, request: Request) -> list[dict]:
 
 
 @router.get("/search")
-async def search(q: str = Query(..., min_length=1), limit: int = 12,
+async def search(q: str = Query(..., min_length=1, max_length=120),
+                 limit: int = Query(default=12, ge=1, le=50),
                  request: Request = None):
     q = q.strip()
 

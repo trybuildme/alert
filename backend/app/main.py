@@ -25,6 +25,7 @@ from app.api import (admin_boundaries, cyclone_forecast, cyclones,
                      metadata, osm_features, search, tiles)
 from app.cache.redis_cache import TileCache
 from app.core.config import settings
+from app.core.ratelimit import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.hazards.alerts import NotificationDispatcher, load_rules
 from app.hazards.ingest import IngestWorker
 from app.hazards.providers.phivolcs import PhivolcsProvider
@@ -93,6 +94,10 @@ async def lifespan(application: FastAPI):
 
 app = FastAPI(title=settings.APP_NAME, version=settings.VERSION, lifespan=lifespan)
 
+# Innermost first, CORS outermost so preflights and 429s carry CORS
+# headers (Starlette: last-added middleware wraps outermost).
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, enabled=settings.RATE_LIMIT_ENABLED)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

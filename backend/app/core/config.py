@@ -15,8 +15,17 @@ class Settings:
     # Tile rendering
     TILE_SIZE: int = 256
 
-    # CORS
-    CORS_ORIGINS: list = ["*"]
+    # CORS — restrictive by default; extend via comma-separated env var
+    # (e.g. NOAH_CORS_ORIGINS="http://localhost:3010,https://noah.example.ph")
+    CORS_ORIGINS: list = [
+        o.strip() for o in os.getenv(
+            "NOAH_CORS_ORIGINS",
+            "http://localhost:3010,http://127.0.0.1:3010").split(",")
+        if o.strip()
+    ]
+
+    # Per-IP rate limiting (see app/core/ratelimit.py for buckets)
+    RATE_LIMIT_ENABLED: bool = os.getenv("NOAH_RATE_LIMIT_ENABLED", "1") == "1"
 
     # --- Earthquake intelligence module (docs/earthquake/) ---
     EARTHQUAKE_ENABLED: bool = os.getenv("EARTHQUAKE_ENABLED", "1") == "1"
