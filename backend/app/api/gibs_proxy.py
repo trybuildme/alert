@@ -13,7 +13,7 @@ Three honest modes per tile:
     gap      GIBS answered 404 (housekeeping window / frame not produced)
              -> transparent PNG, never synthetic filler
     fallback GIBS unreachable -> synthetic generator keeps the app usable,
-             flagged via X-Aurora-Source so the client can disclose it
+             flagged via X-Noah-Source so the client can disclose it
 
 Time strings use the same %Y-%m-%dT%H:%M:%SZ stamps as the internal time
 index; the /api/products/{id}/times endpoint already emits that grid.
@@ -21,6 +21,7 @@ index; the /api/products/{id}/times endpoint already emits that grid.
 
 import io
 import logging
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import numpy as np
@@ -28,7 +29,7 @@ from PIL import Image
 
 from app.services.tile_service import PRODUCTS, TILE_SIZE, TileService
 
-logger = logging.getLogger("aurora.gibs")
+logger = logging.getLogger("noah.gibs")
 
 GIBS_BASE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
@@ -130,7 +131,7 @@ def _get_client() -> httpx.AsyncClient:
     if _client is None:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(15.0, connect=5.0),
-            headers={"User-Agent": "AURORA-GIS/1.0 (live Himawari tile proxy)"},
+            headers={"User-Agent": "NOAH/1.0 (live Himawari tile proxy)"},
             follow_redirects=True,
         )
     return _client
@@ -158,6 +159,30 @@ def _to_png(data: bytes) -> bytes:
 _MODE_LIVE = b"L"
 _MODE_GAP = b"G"
 
+# A 404 at the newest frame is often transient ingest lag, so it is
+# cached only briefly; older frames are immutable and gaps there are
+# cached for a full hour.
+GAP_TTL_NEWEST_S = 180
+GAP_TTL_ARCHIVED_S = 3600
+
+# How many publication steps to walk back when the newest frame 404s.
+NEWEST_FRAME_RETRIES = 3
+
+
+def _tile_url(cfg: dict, stamp: str, z: int, x: int, y: int) -> str:
+    return (f"{GIBS_BASE}/{cfg['layer']}/default/{stamp}/"
+            f"{cfg['tms']}/{z}/{y}/{x}.{cfg['format']}")
+
+
+def _shift_stamp(stamp: str, minutes: int) -> str | None:
+    """Return `stamp` shifted by `minutes`, or None for date-only stamps."""
+    try:
+        dt = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    out = dt.replace(tzinfo=timezone.utc) + timedelta(minutes=minutes)
+    return out.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
 async def get_gibs_tile(product_id: str, z: int, x: int, y: int,
                         time_str: str | None, cache,
@@ -173,15 +198,17 @@ async def get_gibs_tile(product_id: str, z: int, x: int, y: int,
         # Beyond the GIBS tile matrix: client-side over-zoom territory.
         return TRANSPARENT_PNG, "gap"
     enhance = palette == "windy" and product_id == "himawari-clean-ir"
+    meta = PRODUCTS.get(product_id, {})
+    step = int(meta.get("temporal_step_minutes", 10))
+    newest = False
     if time_str:
         stamp = time_str
     else:
-        meta = PRODUCTS.get(product_id, {})
         lag = int(meta.get("publication_lag_minutes", 0))
-        step = int(meta.get("temporal_step_minutes", 10))
         hours = 0.17 if step < 1440 else float(step) / 60.0
         stamp = TileService.available_times(product_id, hours=hours,
                                             step_min=step, lag_min=lag)[0]
+        newest = True
     key = f"gibs:{product_id}:{stamp}:{z}:{x}:{y}"
     if enhance:
         key += ":windy"
@@ -192,10 +219,21 @@ async def get_gibs_tile(product_id: str, z: int, x: int, y: int,
                 return cached[1:], "live"
             return TRANSPARENT_PNG, "gap"
 
-    url = (f"{GIBS_BASE}/{cfg['layer']}/default/{stamp}/"
-           f"{cfg['tms']}/{z}/{y}/{x}.{cfg['format']}")
+    async def _store(target: str, data: bytes) -> bytes:
+        """Normalize + optionally recolor, then cache under the target frame."""
+        if cfg["format"] != "png":
+            data = _to_png(data)
+        if enhance:
+            data = apply_enhanced_ir(data)
+        if cache is not None:
+            ck = f"gibs:{product_id}:{target}:{z}:{x}:{y}"
+            if enhance:
+                ck += ":windy"
+            await cache.set(ck, _MODE_LIVE + data, ttl=3 * 86400)
+        return data
+
     try:
-        resp = await _get_client().get(url)
+        resp = await _get_client().get(_tile_url(cfg, stamp, z, x, y))
     except httpx.HTTPError as exc:
         logger.warning("gibs unreachable (%s): %s", product_id, exc)
         fallback = await TileService(cache=None).get_tile(
@@ -206,21 +244,41 @@ async def get_gibs_tile(product_id: str, z: int, x: int, y: int,
         return TRANSPARENT_PNG, "gap"
 
     if resp.status_code == 200:
-        data = resp.content
-        if cfg["format"] != "png":
-            data = _to_png(data)
-        if enhance:
-            data = apply_enhanced_ir(data)
-        if cache is not None:
-            await cache.set(key, _MODE_LIVE + data, ttl=3 * 86400)
-        return data, "live"
+        return await _store(stamp, resp.content), "live"
+
+    if resp.status_code == 404 and newest and step < 1440:
+        # Fresh frames ingest level-by-level: top-zoom tiles can serve
+        # 200 while parent levels still answer 404 for several minutes.
+        # Walk back a few publication steps before declaring an honest
+        # gap so a just-published frame does not render as holes.
+        back = stamp
+        for _ in range(NEWEST_FRAME_RETRIES):
+            back = _shift_stamp(back, -step)
+            if back is None:
+                break
+            try:
+                older = await _get_client().get(_tile_url(cfg, back, z, x, y))
+            except httpx.HTTPError:
+                break
+            if older.status_code == 200:
+                data = await _store(back, older.content)
+                # Also satisfy the originally requested key so concurrent
+                # requests during ingest lag do not repeat the walk-back.
+                if cache is not None:
+                    await cache.set(key, _MODE_LIVE + data, ttl=3 * 86400)
+                return data, "live"
+            if older.status_code != 404:
+                break
+
     if resp.status_code == 404:
         # Frame genuinely absent from the GIBS index (scan gap): honest blank.
+        ttl = GAP_TTL_NEWEST_S if newest else GAP_TTL_ARCHIVED_S
         if cache is not None:
-            await cache.set(key, _MODE_GAP, ttl=3600)
+            await cache.set(key, _MODE_GAP, ttl=ttl)
         return TRANSPARENT_PNG, "gap"
 
-    logger.warning("gibs http %s for %s", resp.status_code, url)
+    logger.warning("gibs http %s for %s", resp.status_code,
+                   _tile_url(cfg, stamp, z, x, y))
     fallback = await TileService(cache=None).get_tile(cfg["fallback"], z, x, y, time_str)
     if fallback is not None:
         return fallback, "fallback"
