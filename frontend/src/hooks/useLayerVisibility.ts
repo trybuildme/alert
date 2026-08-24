@@ -1,0 +1,125 @@
+import { useEffect } from 'react'
+import maplibregl from 'maplibre-gl'
+import { useLayerStore, useUIStore } from '../stores'
+
+const LAYER_IDS: Record<string, string[]> = {
+  satellite: [],
+  'admin-boundaries': [
+    'admin-islands-line', 'admin-regions-line', 'admin-provinces-line',
+    'admin-municipalities-line', 'admin-barangays-line',
+    'admin-islands-label', 'admin-regions-label', 'admin-provinces-label',
+    'admin-municipalities-label', 'admin-barangays-label',
+  ],
+  roads: ['roads-major', 'roads-farm'],
+  rivers: ['rivers-water', 'rivers-outline'],
+  elevation: ['elevation'],
+  'agricultural-areas': ['farms-fill', 'farms-line', 'farms-labels'],
+  'flood-risk': ['flood-risk-fill', 'flood-risk-line', 'flood-risk-province-marker', 'flood-risk-high-marker'],
+  'weather-stations': ['stations-symbol'],
+  rainfall: ['rainfall-circles'],
+  alerts: ['alerts-fill', 'alerts-line'],
+  cyclones: [
+    'cyclone-extent-fill', 'cyclone-extent-line',
+    'cyclone-track-line', 'cyclone-pos-circle', 'cyclone-pos-label',
+    'cyclone-pulse-a', 'cyclone-pulse-b',
+  ],
+  'cyclone-forecast': ['cyclone-fcst-line', 'cyclone-fcst-circle', 'cyclone-fcst-label'],
+  'cyclone-clouds': ['cyclone-clouds-raster'],
+  par: ['par-line', 'par-label'],
+}
+
+export function useLayerVisibility(map: maplibregl.Map | null) {
+  const layers = useLayerStore((s) => s.layers)
+  const basemap = useUIStore((s) => s.basemap)
+
+  // Roads/rivers geometry (backend Overpass proxy) is fetched per
+  // viewport on demand — whole-country OSM extraction measured at
+  // ~800 MB, so only what the user actually looks at is ever loaded.
+  useEffect(() => {
+    if (!map) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const fill = async (sourceId: string, url: string) => {
+      try {
+        const res = await fetch(url)
+        if (!res.ok) return
+        const data: GeoJSON.FeatureCollection = await res.json()
+        if (data.features?.length) {
+          const src = map.getSource(sourceId) as maplibregl.GeoJSONSource | null
+          if (src && map.isStyleLoaded()) src.setData(data)
+        }
+      } catch { /* honest empty; next viewport retries */ }
+    }
+
+    const refresh = () => {
+      const st = useLayerStore.getState().layers
+      const wantRoads = st.find((l) => l.id === 'roads')?.visible
+      const wantRivers = st.find((l) => l.id === 'rivers')?.visible
+      if (!wantRoads && !wantRivers) return
+      const b = map.getBounds()
+      const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
+        .map((v) => v.toFixed(3)).join(',')
+      const z = map.getZoom()
+      if (wantRoads && z >= 6) fill('roads', `/api/roads?bbox=${bbox}&tier=major`)
+      if (wantRoads && z >= 13) fill('roads-minor', `/api/roads?bbox=${bbox}&tier=minor`)
+      if (wantRivers && z >= 8) fill('waterways', `/api/waterways?bbox=${bbox}`)
+    }
+
+    const onMoveEnd = () => {
+      clearTimeout(timer)
+      timer = setTimeout(refresh, 700)
+    }
+    map.on('moveend', onMoveEnd)
+    refresh()
+    return () => {
+      clearTimeout(timer)
+      map.off('moveend', onMoveEnd)
+    }
+  }, [layers, map])
+
+  useEffect(() => {
+    if (!map) return
+
+    const paintProps: Record<string, string> = {
+      fill: 'fill-opacity', line: 'line-opacity', circle: 'circle-opacity',
+      symbol: 'icon-opacity', raster: 'raster-opacity', background: 'background-opacity',
+      heatmap: 'heatmap-opacity', 'fill-extrusion': 'fill-extrusion-opacity', hillshade: 'hillshade-exaggeration',
+    }
+
+    const apply = () => {
+      for (const layer of useLayerStore.getState().layers) {
+        const ids = LAYER_IDS[layer.id] ?? []
+        for (const id of ids) {
+          if (!map.getLayer(id)) continue
+          try {
+            map.setLayoutProperty(id, 'visibility', layer.visible ? 'visible' : 'none')
+            const type = map.getLayer(id)?.type as keyof typeof paintProps
+            const prop = paintProps[type]
+            if (prop && prop !== 'hillshade-exaggeration') {
+              map.setPaintProperty(id, prop, layer.opacity)
+            }
+          } catch { /* one stubborn layer must never strand later groups */ }
+        }
+      }
+    }
+
+    // Style may not be loaded on first mount — defer to load instead of
+    // silently dropping the apply (restored session state must land even
+    // if readiness races style construction).
+    if (!map.isStyleLoaded()) {
+      map.once('load', apply)
+      return
+    }
+    apply()
+
+    Object.keys(LAYER_BASEMAP_MAP).forEach((id) => {
+      if (map.getLayer(`basemap-${id}`)) {
+        map.setLayoutProperty(`basemap-${id}`, 'visibility', id === basemap ? 'visible' : 'none')
+      }
+    })
+  }, [layers, basemap, map])
+}
+
+const LAYER_BASEMAP_MAP: Record<string, null> = {
+  satellite: null, street: null, terrain: null, dark: null, light: null,
+}
