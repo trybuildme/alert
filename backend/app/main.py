@@ -23,7 +23,7 @@ import os
 
 from app.api import (admin_boundaries, cyclone_forecast, cyclones,
                      earthquakes, esri_proxy, gibs_proxy, health, inspect,
-                     metadata, metrics, osm_features, search, tiles)
+                     metadata, metrics, osm_features, push, search, tiles)
 from app.cache.redis_cache import TileCache
 from app.core.auth import AuthMiddleware
 from app.core.config import settings
@@ -31,6 +31,7 @@ from app.core.ratelimit import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.hazards.alerts import NotificationDispatcher, load_rules
 from app.hazards.channels import EmailChannel, WebhookChannel
 from app.hazards.ingest import IngestWorker
+from app.hazards.push import WebPushChannel
 from app.hazards.providers.phivolcs import PhivolcsProvider
 from app.hazards.providers.usgs import UsgsProvider
 from app.hazards.base import EventBus
@@ -76,6 +77,11 @@ async def lifespan(application: FastAPI):
             dispatcher.register("webhook",
                                 WebhookChannel(settings.WEBHOOK_URL))
             logger.info("webhook alert channel enabled")
+        if settings.VAPID_PRIVATE_KEY and settings.VAPID_PUBLIC_KEY:
+            dispatcher.register("webpush", WebPushChannel(
+                store, settings.VAPID_PRIVATE_KEY,
+                settings.VAPID_PUBLIC_KEY, settings.VAPID_SUBJECT))
+            logger.info("web push alert channel enabled")
 
         async def on_alert(decision, event):
             await dispatcher.dispatch(decision, event, bus.publish)
@@ -151,6 +157,7 @@ app.include_router(cyclones.router)
 app.include_router(cyclone_forecast.router)
 app.include_router(osm_features.router)
 app.include_router(earthquakes.router)
+app.include_router(push.router)
 app.include_router(health.router)
 app.include_router(metrics.router)
 

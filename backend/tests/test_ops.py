@@ -130,3 +130,96 @@ def test_email_channel_builds_message():
     assert "CRITICAL" in msg["Subject"]
     body = msg.get_content().strip()
     assert "summary: M7.2 — Eastern Visayas" in body
+
+
+# ---- web push -----------------------------------------------------------------
+
+def _push_store(tmp_path):
+    from app.hazards.store import EarthquakeStore
+    return EarthquakeStore(str(tmp_path / "push.db"))
+
+
+def test_push_subscription_roundtrip(tmp_path):
+    store = _push_store(tmp_path)
+    store.save_subscription("https://p.example/ep1", "k1", "a1")
+    store.save_subscription("https://p.example/ep2", "k2", "a2")
+    subs = store.list_subscriptions()
+    assert len(subs) == 2
+    # upsert refreshes keys without duplicating
+    store.save_subscription("https://p.example/ep1", "k1b", "a1b")
+    assert len(store.list_subscriptions()) == 2
+    sub = [s for s in store.list_subscriptions()
+           if s["endpoint"] == "https://p.example/ep1"][0]
+    assert sub["p256dh"] == "k1b" and sub["auth"] == "a1b"
+    assert store.delete_subscription("https://p.example/ep1") is True
+    assert store.delete_subscription("https://p.example/nope") is False
+    assert len(store.list_subscriptions()) == 1
+    store.close()
+
+
+def test_push_api_subscribe_unsubscribe(client):
+    body = {"endpoint": "https://push.example/xyz",
+            "keys": {"p256dh": "pk", "auth": "au"}}
+    r = client.post("/api/push/subscribe", json=body)
+    assert r.status_code == 200
+    # vapid public key is unset in the test env
+    assert client.get("/api/push/vapid").json()["public_key"] is None
+    r = client.post("/api/push/unsubscribe", json={"endpoint": body["endpoint"],
+                                                   "keys": {}})
+    assert r.json() == {"ok": True, "removed": True}
+    r = client.post("/api/push/unsubscribe", json={"endpoint": "gone", "keys": {}})
+    assert r.json()["removed"] is False
+
+
+def test_push_api_rejects_malformed(client):
+    r = client.post("/api/push/subscribe",
+                    json={"endpoint": "", "keys": {}})
+    assert r.status_code == 422
+    r = client.post("/api/push/subscribe",
+                    json={"endpoint": "https://x/" + "e" * 3000,
+                          "keys": {"p256dh": "k", "auth": "a"}})
+    assert r.status_code == 422
+
+
+def test_webpush_channel_prunes_dead_endpoints(tmp_path, monkeypatch):
+    import asyncio
+
+    from app.hazards import push as push_mod
+    from app.hazards.push import WebPushChannel
+
+    store = _push_store(tmp_path)
+    store.save_subscription("https://dead.example/ep", "k", "a")
+
+    monkeypatch.setattr(push_mod, "send_to_subscription",
+                        lambda *a, **kw: False)  # 404/410 -> prune
+    async def fake_list():
+        return store.list_subscriptions()
+
+    channel = WebPushChannel(store, "priv", "pub", "mailto:x")
+    delivered = asyncio.new_event_loop().run_until_complete(
+        channel({"severity": "HIGH"}))
+    assert delivered == 0
+    assert store.list_subscriptions() == []
+    store.close()
+
+
+def test_webpush_channel_survives_send_errors(tmp_path, monkeypatch):
+    import asyncio
+
+    from app.hazards import push as push_mod
+    from app.hazards.push import WebPushChannel
+
+    store = _push_store(tmp_path)
+    store.save_subscription("https://flaky.example/ep", "k", "a")
+
+    def boom(*a, **kw):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(push_mod, "send_to_subscription", boom)
+    channel = WebPushChannel(store, "priv", "pub", "mailto:x")
+    delivered = asyncio.new_event_loop().run_until_complete(
+        channel({"severity": "INFO"}))
+    assert delivered == 0            # error logged, not raised
+    # flaky-but-alive endpoint is NOT pruned on transient errors
+    assert len(store.list_subscriptions()) == 1
+    store.close()

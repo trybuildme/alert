@@ -1,8 +1,10 @@
 // Facebook-style notification bell for the top bar: unread badge +
 // dropdown feed (earthquake alerts, new cyclones; tsunami/flood slots
-// activate when those modules exist).
+// activate when those modules exist) + browser push opt-in.
 
+import { useEffect, useState } from 'react'
 import { useNotifStore, type NotifKind } from '../../stores/notifications'
+import { currentPushState, disableBrowserAlerts, enableBrowserAlerts, type PushState } from '../../lib/pushClient'
 
 const KIND_META: Record<NotifKind, { icon: string; color: string; label: string }> = {
   earthquake: { icon: '🌍', color: '#ff9800', label: 'Earthquake' },
@@ -25,6 +27,18 @@ export default function NotificationBell() {
   const unread = useNotifStore((s) => s.unread)
   const toggle = useNotifStore((s) => s.toggle)
   const markAllRead = useNotifStore((s) => s.markAllRead)
+  const [push, setPush] = useState<PushState | null>(null)
+  const [pushBusy, setPushBusy] = useState(false)
+
+  // Probe push capability lazily when the dropdown first opens so we
+  // don't fire /api/push/vapid on every page load.
+  useEffect(() => {
+    if (open && push === null) {
+      currentPushState().then(setPush).catch(() => setPush({
+        supported: false, enabled: false, unconfigured: false,
+      }))
+    }
+  }, [open, push])
 
   return (
     <div className="notif-wrap">
@@ -70,6 +84,31 @@ export default function NotificationBell() {
               </div>
             )
           })}
+          {push && push.supported && !push.unconfigured && (
+            <div className="notif-push">
+              <span className="notif-push-label">Browser alerts</span>
+              <button
+                className={`notif-push-btn ${push.enabled ? 'on' : ''}`}
+                disabled={pushBusy}
+                onClick={async () => {
+                  setPushBusy(true)
+                  if (push.enabled) {
+                    await disableBrowserAlerts()
+                    setPush({ ...push, enabled: false })
+                  } else {
+                    const result = await enableBrowserAlerts()
+                    if (result === 'granted') setPush({ ...push, enabled: true })
+                  }
+                  setPushBusy(false)
+                }}
+                title={push.enabled
+                  ? 'Subscribed — click to stop browser notifications'
+                  : 'Get OS notifications for hazard alerts even when NOAH is closed'}
+              >
+                {pushBusy ? '…' : push.enabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

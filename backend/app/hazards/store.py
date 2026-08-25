@@ -56,6 +56,12 @@ CREATE TABLE IF NOT EXISTS hazard_alerts (
     summary TEXT NOT NULL,
     event_uid TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint TEXT PRIMARY KEY,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -150,6 +156,32 @@ class EarthquakeStore:
                 "DELETE FROM hazard_alerts WHERE created_at < ?",
                 (_iso(cutoff),))
             return cur.rowcount
+
+    # -- web push subscriptions ---------------------------------------------
+
+    def save_subscription(self, endpoint: str, p256dh: str, auth: str) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO push_subscriptions (endpoint, p256dh, auth,"
+                " created_at) VALUES (?,?,?,?)"
+                " ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,"
+                " auth=excluded.auth",
+                (endpoint, p256dh, auth, _iso(datetime.now(timezone.utc))))
+
+    def delete_subscription(self, endpoint: str) -> bool:
+        with self._lock, self._conn:
+            cur = self._conn.execute(
+                "DELETE FROM push_subscriptions WHERE endpoint = ?",
+                (endpoint,))
+            return cur.rowcount > 0
+
+    def list_subscriptions(self) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT endpoint, p256dh, auth FROM push_subscriptions"
+            ).fetchall()
+        return [{"endpoint": r["endpoint"], "p256dh": r["p256dh"],
+                 "auth": r["auth"]} for r in rows]
 
     # -- reads -------------------------------------------------------------
 

@@ -109,6 +109,17 @@ class Settings(BaseSettings):
     WEBHOOK_URL: str = Field(
         "", validation_alias=AliasChoices("NOAH_WEBHOOK_URL"))
 
+    # --- Web Push (browser notifications; both keys required) ---
+    # Generate once: python -c "from py_vapid import Vapid; \
+    #   v=Vapid(); v.generate_keys(); print(v.private_key, v.public_key)"
+    VAPID_PRIVATE_KEY: str = Field(
+        "", validation_alias=AliasChoices("NOAH_VAPID_PRIVATE_KEY"))
+    VAPID_PUBLIC_KEY: str = Field(
+        "", validation_alias=AliasChoices("NOAH_VAPID_PUBLIC_KEY"))
+    VAPID_SUBJECT: str = Field(
+        "mailto:ops@example.ph",
+        validation_alias=AliasChoices("NOAH_VAPID_SUBJECT"))
+
     @field_validator("CORS_ORIGINS", "TRUSTED_PROXIES", "SMTP_TO",
                      mode="before")
     @classmethod
