@@ -9,11 +9,24 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - NOAH_TILE_CACHE_DIR=/data/tilecache
+      - NOAH_WEB_WORKERS=${NOAH_WEB_WORKERS:-1}
+      # Public-exposure hardening (all optional):
+      - NOAH_AUTH_TOKEN=${NOAH_AUTH_TOKEN:-}
+      - NOAH_TRUSTED_PROXIES=${NOAH_TRUSTED_PROXIES:-}
+      - NOAH_VAPID_PUBLIC_KEY=${NOAH_VAPID_PUBLIC_KEY:-}
+      - NOAH_VAPID_PRIVATE_KEY=${NOAH_VAPID_PRIVATE_KEY:-}
     volumes:
       - tilecache:/data/tilecache
       - eqdata:/app/data
     depends_on:
       - redis
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   frontend:
@@ -25,7 +38,13 @@ services:
     ports:
       - "3010:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   redis:
@@ -36,6 +55,11 @@ services:
     command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
 volumes:

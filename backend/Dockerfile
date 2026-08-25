@@ -9,5 +9,19 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Non-root runtime; /app/data holds the SQLite DB (mounted volume)
+RUN useradd --system --create-home noah \
+    && mkdir -p /app/data \
+    && chown -R noah:noah /app
+USER noah
+
 EXPOSE 8002
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+
+# Single worker by DEFAULT and for good reason: the event bus, ingest
+# loop, rate limiter and SSE fan-out are in-process. Multiple workers
+# would split SSE subscribers across processes that can't see each
+# other's events. Raise NOAH_WEB_WORKERS only with that understood.
+CMD ["sh", "-c", "exec python -m gunicorn -k uvicorn.workers.UvicornWorker \
+    -w ${NOAH_WEB_WORKERS:-1} --graceful-timeout 30 --timeout 120 \
+    --max-requests 10000 --max-requests-jitter 1000 \
+    -b 0.0.0.0:8002 app.main:app"]
