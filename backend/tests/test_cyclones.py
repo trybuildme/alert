@@ -6,6 +6,7 @@ degradation when NOAA NCEI is unreachable.
 
 import csv
 import io
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -54,18 +55,28 @@ def _storm(sid: str, name: str, basin: str, fixes: list[tuple[str, str, str, str
     return out
 
 
+# Fixtures are clock-relative so the 7-day recency window in
+# cyclones.py can never age them out (a hardcoded-date version of this
+# suite started failing the moment real time crossed its own cutoff).
+_NOW = datetime.now(timezone.utc)
+
+
+def _ago(**kw) -> str:
+    return (_NOW - timedelta(**kw)).strftime("%Y-%m-%d %H:%M:%S")
+
+
 ROWS = (
     _storm("2026123", "SAUDEL", "WP", [
-        ("2026-08-18 00:00:00", "7.9", "154.9", "25"),
-        ("2026-08-19 06:00:00", "8.5", "154.1", "35"),
-        ("2026-08-20 00:00:00", "11.4", "151.6", "55"),
+        (_ago(days=5), "7.9", "154.9", "25"),
+        (_ago(days=4, hours=18), "8.5", "154.1", "35"),
+        (_ago(days=4), "11.4", "151.6", "55"),
     ])
     + _storm("2026999", "OLDSTORM", "WP", [
         # Entirely outside a 7-day window relative to any test run
         ("2001-01-01 00:00:00", "10.0", "140.0", "30"),
     ])
     + _storm("2026456", "LALA", "EP", [
-        ("2026-08-19 12:00:00", "17.2", "-110.5", "70"),
+        (_ago(days=4, hours=12), "17.2", "-110.5", "70"),
     ])
 )
 
@@ -127,10 +138,10 @@ def test_wind_radius_and_extent_polygon(client, monkeypatch):
     storms without reported radii get no extent (no fabricated circles)."""
     rows = (
         _storm("2026310", "LALA", "EP", [
-            ("2026-08-19 12:00:00", "17.2", "-110.5", "100"),
+            (_ago(days=4, hours=12), "17.2", "-110.5", "100"),
         ], r34=("120", "100", "60", "110"))
         + _storm("2026311", "NANGKA", "WP", [
-            ("2026-08-19 18:00:00", "27.6", "163.0", "20"),
+            (_ago(days=4, hours=6), "27.6", "163.0", "20"),
         ])
     )
     _mock(monkeypatch, rows)
@@ -209,16 +220,16 @@ def test_pagasa_names_assigned_on_par_entry(client, monkeypatch):
     international-only."""
     rows = (
         _storm("2026001", "MYSURG", "WP", [
-            ("2026-08-18 00:00:00", "12.0", "141.0", "35"),
-            ("2026-08-19 00:00:00", "14.0", "133.0", "45"),   # enters PAR
-            ("2026-08-20 00:00:00", "16.0", "128.0", "55"),
+            (_ago(days=5), "12.0", "141.0", "35"),
+            (_ago(days=4), "14.0", "133.0", "45"),   # enters PAR
+            (_ago(days=3), "16.0", "128.0", "55"),
         ])
         + _storm("2026002", "SECOND", "WP", [
-            ("2026-08-19 00:00:00", "10.0", "139.0", "30"),
-            ("2026-08-20 06:00:00", "11.0", "131.0", "40"),   # enters later
+            (_ago(days=4), "10.0", "139.0", "30"),
+            (_ago(days=2, hours=18), "11.0", "131.0", "40"),  # enters later
         ])
         + _storm("2026003", "NEVERPAR", "WP", [
-            ("2026-08-19 00:00:00", "8.0", "150.0", "30"),
+            (_ago(days=4), "8.0", "150.0", "30"),
         ])
     )
     _mock(monkeypatch, rows)
