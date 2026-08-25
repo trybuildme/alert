@@ -582,7 +582,10 @@ export function buildStyle() {
       layout: { visibility: 'none' },
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4.5, 10, 9],
-        'circle-color': '#f97316',
+        // green while flagged currently active, orange otherwise
+        // (active_now is a curated manual snapshot, not a live feed)
+        'circle-color': ['case',
+          ['boolean', ['get', 'active_now'], false], '#22c55e', '#f97316'],
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 1.4,
       },

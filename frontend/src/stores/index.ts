@@ -93,8 +93,8 @@ const INITIAL_LAYERS: LayerInfo[] = [
     legend: [{ label: 'Issued bulletin', color: '#22d3ee' }],
   },
   {
-    id: 'volcanoes', name: 'Volcano Sites', description: 'PHIVOLCS-monitored volcano registry (static sites, not live alert levels)', visible: true, opacity: 1,
-    legend: [{ label: 'Monitored volcano', color: '#f97316' }],
+    id: 'volcanoes', name: 'Volcano Sites', description: 'PHIVOLCS-monitored volcano registry — green = flagged currently active (curated snapshot, not live alert levels)', visible: true, opacity: 1,
+    legend: [{ label: 'Active now (snapshot)', color: '#22c55e' }, { label: 'Monitored, quiet', color: '#f97316' }],
   },
   {
     id: 'cyclones', name: 'Cyclone Tracks', description: 'Active tropical cyclones — NOAA IBTrACS best-track (~3× weekly, not operational warnings). Colors per PAGASA / panahon.gov.ph classification', visible: false, opacity: 1,

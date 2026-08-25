@@ -101,4 +101,12 @@ def test_volcanoes_registry(client):
                  if f["properties"]["name"] == "Mayon")
     assert mayon["geometry"]["coordinates"][0] == pytest.approx(123.686, abs=0.01)
     assert mayon["properties"]["last_known_eruption"] == "2018"
+    assert mayon["properties"]["active_now"] is False
+    # active snapshot flag present on all sites; Kanlaon/Taal/Bulusan
+    # curated as currently active as of the dataset date
+    assert "active_status_as_of" in body
+    actives = {f["properties"]["name"] for f in body["features"]
+               if f["properties"]["active_now"]}
+    assert {"Kanlaon", "Taal", "Bulusan"} <= actives
+    assert len(actives) == 3
     assert "NOT live alert levels" in body["disclaimer"]
