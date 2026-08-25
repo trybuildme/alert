@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { lazy, Suspense, useRef } from 'react'
 import { useMap } from './hooks/useMap'
 import { useLayerVisibility } from './hooks/useLayerVisibility'
 import { useDrawing } from './hooks/useDrawing'
@@ -12,12 +12,15 @@ import TimeMachine from './components/controls/TimeMachine'
 import MapControls from './components/controls/MapControls'
 import ReplayControls from './components/controls/ReplayControls'
 import LayerPanel from './components/layers/LayerPanel'
-import InspectPanel from './components/panels/InspectPanel'
-import CycloneForecastPanel from './components/panels/CycloneForecastPanel'
-import EarthquakePanel from './components/panels/EarthquakePanel'
+
+// Panels render conditionally — code-split them so first paint only
+// pays for the map shell.
+const InspectPanel = lazy(() => import('./components/panels/InspectPanel'))
+const CycloneForecastPanel = lazy(() => import('./components/panels/CycloneForecastPanel'))
+const EarthquakePanel = lazy(() => import('./components/panels/EarthquakePanel'))
+const MeasurementPanel = lazy(() => import('./components/panels/MeasurementPanel'))
 import ResolutionIndicator from './components/panels/ResolutionIndicator'
 import MapTimestamp from './components/panels/MapTimestamp'
-import MeasurementPanel from './components/panels/MeasurementPanel'
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -36,10 +39,12 @@ export default function App() {
       <div className="map-wrap">
         <div ref={containerRef} className="map-container" />
         <LayerPanel />
-        <CycloneForecastPanel />
-        <EarthquakePanel />
-        <InspectPanel />
-        <MeasurementPanel />
+        <Suspense fallback={null}>
+          <CycloneForecastPanel />
+          <EarthquakePanel />
+          <InspectPanel />
+          <MeasurementPanel />
+        </Suspense>
         <ResolutionIndicator />
         <MapTimestamp />
         <MapControls />
