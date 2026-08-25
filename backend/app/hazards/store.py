@@ -141,6 +141,16 @@ class EarthquakeStore:
                 (_iso(datetime.now(timezone.utc)), severity, rule_name,
                  summary, event_uid))
 
+    def prune_alerts(self, older_than_days: int) -> int:
+        """Delete hazard_alerts older than the retention window.
+        Returns the number of rows removed."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+        with self._lock, self._conn:
+            cur = self._conn.execute(
+                "DELETE FROM hazard_alerts WHERE created_at < ?",
+                (_iso(cutoff),))
+            return cur.rowcount
+
     # -- reads -------------------------------------------------------------
 
     @staticmethod

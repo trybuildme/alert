@@ -12,4 +12,19 @@ Fields: `magnitude`, `depth_km`, `distance_km` (from reference point),
 Reference point: `NOAH_EQ_REF_LAT/LON/RADIUS_KM` (default Aurora Province).
 
 Flow: Event → rules → decision(s) → persisted → NotificationDispatcher →
-channels (today: dashboard via SSE; sirens/email/SMS subscribe later).
+channels.
+
+## Delivery channels
+
+| Channel | Enable with | Behaviour |
+|---|---|---|
+| dashboard | always on | rides the SSE event bus |
+| email | `NOAH_SMTP_HOST` + `NOAH_SMTP_TO` (optional `NOAH_SMTP_PORT/USER/PASSWORD/FROM`) | SMTP STARTTLS, sent off the event loop |
+| webhook | `NOAH_WEBHOOK_URL` | POSTs the alert JSON to any relay |
+
+Channel failures are logged and never break ingestion (`app/hazards/channels.py`).
+
+## Retention
+
+`hazard_alerts` rows older than `NOAH_ALERT_RETENTION_DAYS` (default 90)
+are pruned daily by a lifespan task (`EarthquakeStore.prune_alerts`).
