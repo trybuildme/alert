@@ -11,6 +11,7 @@ FastAPI application serving:
   /health                            service + cache status
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -22,11 +23,13 @@ import os
 
 from app.api import (admin_boundaries, cyclone_forecast, cyclones,
                      earthquakes, esri_proxy, gibs_proxy, health, inspect,
-                     metadata, osm_features, search, tiles)
+                     metadata, metrics, osm_features, search, tiles)
 from app.cache.redis_cache import TileCache
+from app.core.auth import AuthMiddleware
 from app.core.config import settings
 from app.core.ratelimit import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.hazards.alerts import NotificationDispatcher, load_rules
+from app.hazards.channels import EmailChannel, WebhookChannel
 from app.hazards.ingest import IngestWorker
 from app.hazards.providers.phivolcs import PhivolcsProvider
 from app.hazards.providers.usgs import UsgsProvider
@@ -62,6 +65,17 @@ async def lifespan(application: FastAPI):
         reference = (settings.NOAH_EQ_REF_LAT, settings.NOAH_EQ_REF_LON)
         dispatcher = NotificationDispatcher()
         dispatcher.register("dashboard", lambda payload: None)
+        # Optional delivery channels (docs/earthquake/ALERTS.md)
+        if settings.SMTP_HOST and settings.SMTP_TO:
+            dispatcher.register("email", EmailChannel(
+                settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER,
+                settings.SMTP_PASSWORD, settings.SMTP_FROM, settings.SMTP_TO))
+            logger.info("email alert channel enabled -> %s",
+                        ", ".join(settings.SMTP_TO))
+        if settings.WEBHOOK_URL:
+            dispatcher.register("webhook",
+                                WebhookChannel(settings.WEBHOOK_URL))
+            logger.info("webhook alert channel enabled")
 
         async def on_alert(decision, event):
             await dispatcher.dispatch(decision, event, bus.publish)
@@ -86,18 +100,36 @@ async def lifespan(application: FastAPI):
         worker.start()
         logger.info("earthquake module enabled (poll every %ss)",
                     settings.EARTHQUAKE_POLL_INTERVAL)
+
+        # Alert retention: prune hazard_alerts older than the configured
+        # window, then re-check daily.
+        async def retention_loop():
+            while True:
+                try:
+                    removed = await asyncio.to_thread(
+                        store.prune_alerts, settings.ALERT_RETENTION_DAYS)
+                    if removed:
+                        logger.info("alert retention pruned %d rows", removed)
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("alert retention failed: %s", exc)
+                await asyncio.sleep(24 * 3600)
+
+        retention_task = asyncio.create_task(retention_loop())
     yield
     if settings.EARTHQUAKE_ENABLED and hasattr(application.state, "earthquakes"):
+        retention_task.cancel()
         await application.state.earthquakes["worker"].stop()
         application.state.earthquakes["store"].close()
 
 
 app = FastAPI(title=settings.APP_NAME, version=settings.VERSION, lifespan=lifespan)
 
-# Innermost first, CORS outermost so preflights and 429s carry CORS
-# headers (Starlette: last-added middleware wraps outermost).
+# Innermost first, CORS outermost so preflights, 401s and 429s carry
+# CORS headers (Starlette: last-added middleware wraps outermost).
+app.add_middleware(AuthMiddleware, token=settings.AUTH_TOKEN)
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(RateLimitMiddleware, enabled=settings.RATE_LIMIT_ENABLED)
+app.add_middleware(RateLimitMiddleware, enabled=settings.RATE_LIMIT_ENABLED,
+                   trusted_proxies=settings.TRUSTED_PROXIES)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -120,6 +152,7 @@ app.include_router(cyclone_forecast.router)
 app.include_router(osm_features.router)
 app.include_router(earthquakes.router)
 app.include_router(health.router)
+app.include_router(metrics.router)
 
 
 @app.get("/", include_in_schema=False)

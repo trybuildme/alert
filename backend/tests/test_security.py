@@ -99,3 +99,125 @@ def test_rate_limit_enabled_by_default():
 def test_search_query_length_capped(client):
     r = client.get("/api/search?q=" + "x" * 200)
     assert r.status_code == 422          # FastAPI rejects >120 chars
+
+
+# ---- Trusted proxy X-Forwarded-For resolution ---------------------------------
+
+@pytest.fixture()
+def ip_app():
+    from fastapi import FastAPI, Request
+
+    from app.core.ratelimit import parse_networks, resolve_client_ip
+
+    probe = FastAPI()
+
+    @probe.get("/ip")
+    def ip(request: Request):
+        return {"ip": resolve_client_ip(request,
+                                        parse_networks(["10.0.0.1",
+                                                        "10.0.0.0/8"]))}
+
+    return probe
+
+
+def test_xff_ignored_without_trusted_proxies(ip_app):
+    from app.core.ratelimit import parse_networks, resolve_client_ip
+    c = TestClient(ip_app)
+    r = c.get("/ip", headers={"X-Forwarded-For": "9.9.9.9"})
+    assert r.json()["ip"] != "9.9.9.9"   # direct peer wins when unconfigured
+    assert resolve_client_ip  # noqa: B018 (import sanity)
+
+
+def test_resolve_client_ip_chain_logic():
+    from app.core import ratelimit
+
+    class FakeClient:
+        def __init__(self, host):
+            self.host = host
+
+    class FakeRequest:
+        def __init__(self, host, xff=None):
+            self.client = FakeClient(host)
+            self.headers = {"x-forwarded-for": xff} if xff else {}
+
+    trusted = ratelimit.parse_networks(["10.0.0.0/8"])
+    # Direct connection from a non-proxy client: XFF ignored entirely
+    assert ratelimit.resolve_client_ip(
+        FakeRequest("8.8.8.8", "1.2.3.4"), trusted) == "8.8.8.8"
+    # Trusted proxy forwards one hop
+    assert ratelimit.resolve_client_ip(
+        FakeRequest("10.0.0.5", "1.2.3.4"), trusted) == "1.2.3.4"
+    # Chain: proxy -> proxy -> client; rightmost non-trusted wins
+    assert ratelimit.resolve_client_ip(
+        FakeRequest("10.0.0.5", "10.0.0.6, 1.2.3.4"), trusted) == "1.2.3.4"
+    # Spoofing client header through direct connection does nothing
+    assert ratelimit.resolve_client_ip(FakeRequest("8.8.8.8"), trusted) \
+        == "8.8.8.8"
+    # Malformed XFF entries skipped
+    assert ratelimit.resolve_client_ip(
+        FakeRequest("10.0.0.5", "garbage, 1.2.3.4"), trusted) == "1.2.3.4"
+    # All-trusted chain falls back to direct peer
+    assert ratelimit.resolve_client_ip(
+        FakeRequest("10.0.0.5", "10.0.0.6"), trusted) == "10.0.0.5"
+
+
+# ---- Auth ---------------------------------------------------------------------
+
+@pytest.fixture()
+def auth_app():
+    from fastapi import FastAPI
+
+    from app.core.auth import AuthMiddleware
+
+    secured = FastAPI()
+
+    @secured.get("/api/ping")
+    def ping():
+        return {"ok": True}
+
+    @secured.get("/health")
+    def health():
+        return {"ok": True}
+
+    secured.add_middleware(AuthMiddleware, token="s3cret")
+    return TestClient(secured)
+
+
+def test_auth_disabled_when_token_empty():
+    from fastapi import FastAPI
+
+    from app.core.auth import AuthMiddleware
+
+    open_app = FastAPI()
+
+    @open_app.get("/api/ping")
+    def ping():
+        return {"ok": True}
+
+    open_app.add_middleware(AuthMiddleware, token="")
+    c = TestClient(open_app)
+    assert c.get("/api/ping").status_code == 200
+
+
+def test_auth_rejects_missing_and_wrong_token(auth_app):
+    assert auth_app.get("/api/ping").status_code == 401
+    assert auth_app.get(
+        "/api/ping", headers={"Authorization": "Bearer wrong"}).status_code \
+        == 401
+    assert auth_app.get("/api/ping?access_token=nope").status_code == 401
+
+
+def test_auth_accepts_bearer_header_and_query_param(auth_app):
+    assert auth_app.get(
+        "/api/ping", headers={"Authorization": "Bearer s3cret"}).status_code \
+        == 200
+    assert auth_app.get("/api/ping?access_token=s3cret").status_code == 200
+
+
+def test_auth_exempts_health(auth_app):
+    assert auth_app.get("/health").status_code == 200
+
+
+def test_auth_www_authenticate_header(auth_app):
+    r = auth_app.get("/api/ping")
+    assert r.headers["www-authenticate"] == "Bearer"

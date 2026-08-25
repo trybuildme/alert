@@ -10,15 +10,17 @@ out to upstream services (Overpass, NASA, Esri) and alerting endpoints
 are tighter.
 
 Trust model: client IP is request.client.host — DIRECT connection only.
-Behind a reverse proxy every client shares the proxy IP; deploy the
-limiter at the proxy (or extend this to honor a trusted X-Forwarded-For)
-before exposing NOAH publicly.
+Behind a reverse proxy, configure NOAH_TRUSTED_PROXIES with the proxy
+IPs/CIDRs; the limiter then walks X-Forwarded-For right-to-left and
+takes the first non-trusted address (standard proxy-chain semantics).
+Untrusted senders' XFF headers are ignored.
 
 Set NOAH_RATE_LIMIT_ENABLED=0 to disable entirely (e.g., load tests).
 """
 
 from __future__ import annotations
 
+import ipaddress
 import threading
 import time
 
@@ -81,10 +83,48 @@ def match_bucket(path: str) -> tuple[str, int, int] | None:
     return None
 
 
+def parse_networks(raw: list[str]) -> list:
+    """'1.2.3.4', '10.0.0.0/8', ... -> ipaddress network objects."""
+    nets = []
+    for item in raw or []:
+        try:
+            nets.append(ipaddress.ip_network(item.strip(), strict=False))
+        except ValueError:
+            continue
+    return nets
+
+
+def resolve_client_ip(request: Request, trusted: list) -> str:
+    """Real client IP: walk X-Forwarded-For right-to-left, skipping
+    trusted proxies. Falls back to the direct peer when no proxy chain
+    is configured or the chain is exhausted/untrusted."""
+    direct = request.client.host if request.client else "unknown"
+    if not trusted:
+        return direct
+    try:
+        peer = ipaddress.ip_address(direct)
+    except ValueError:
+        return direct
+    if not any(peer in net for net in trusted):
+        return direct
+    xff = request.headers.get("x-forwarded-for", "")
+    candidates = [c.strip() for c in xff.split(",") if c.strip()]
+    for candidate in reversed(candidates):
+        try:
+            addr = ipaddress.ip_address(candidate)
+        except ValueError:
+            continue
+        if not any(addr in net for net in trusted):
+            return str(addr)
+    return direct
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, enabled: bool = True):
+    def __init__(self, app, enabled: bool = True,
+                 trusted_proxies: list[str] | None = None):
         super().__init__(app)
         self.enabled = enabled
+        self.trusted = parse_networks(trusted_proxies or [])
 
     async def dispatch(self, request: Request, call_next):
         if not self.enabled:
@@ -96,7 +136,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if bucket is None:
             return await call_next(request)
         name, max_req, window = bucket
-        ip = request.client.host if request.client else "unknown"
+        ip = resolve_client_ip(request, self.trusted)
         allowed, retry_after = _state.check(ip, name, max_req, window)
         if not allowed:
             return JSONResponse(
