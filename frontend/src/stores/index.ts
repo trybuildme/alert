@@ -93,7 +93,7 @@ const INITIAL_LAYERS: LayerInfo[] = [
     legend: [{ label: 'Issued bulletin', color: '#22d3ee' }],
   },
   {
-    id: 'volcanoes', name: 'Volcano Sites', description: 'PHIVOLCS-monitored volcano registry (static sites, not live alert levels)', visible: false, opacity: 1,
+    id: 'volcanoes', name: 'Volcano Sites', description: 'PHIVOLCS-monitored volcano registry (static sites, not live alert levels)', visible: true, opacity: 1,
     legend: [{ label: 'Monitored volcano', color: '#f97316' }],
   },
   {
@@ -144,7 +144,9 @@ interface LayerState {
 // v2: bumped 2026-08-24 so pre-existing snapshots (saved while PAR
 // defaulted to off) stop overriding the new defaults. Users keep their
 // toggles from here forward.
-const LAYER_STORAGE_KEY = 'noah.layers.v2'
+// v3: bumped 2026-08-25 so snapshots saved before the volcano layer
+// shipped stop forcing it off; volcano now defaults to visible.
+const LAYER_STORAGE_KEY = 'noah.layers.v3'
 
 type SavedLayerState = { visible?: boolean; opacity?: number }
 
