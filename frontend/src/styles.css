@@ -446,3 +446,37 @@ html, body, #root { height: 100%; overflow: hidden; background: var(--bg); color
 .notif-body b { font-weight: 700; }
 .notif-detail { color: var(--text-dim); font-size: 10.5px; line-height: 1.35; }
 .notif-age { font-size: 10px; color: var(--text-dim); white-space: nowrap; padding-top: 2px; }
+
+/* ---------------- Earthquake replay ---------------- */
+
+.replay-bar {
+  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+  width: min(720px, calc(100% - 40px));
+  background: var(--panel); backdrop-filter: blur(8px);
+  border: 1px solid var(--border); border-radius: 12px; z-index: 15;
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+}
+.rp-play {
+  width: 34px; height: 34px; flex: 0 0 auto;
+  background: rgba(255,255,255,0.06); color: var(--accent);
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; cursor: pointer;
+}
+.rp-play:hover:not(:disabled) { border-color: var(--accent); }
+.rp-play:disabled { opacity: 0.4; cursor: default; }
+.rp-select {
+  background: rgba(255,255,255,0.06); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 6px; font-size: 11px; cursor: pointer;
+}
+.rp-slider { flex: 1; min-width: 0; accent-color: var(--accent); cursor: pointer; }
+.rp-readout { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+.rp-date { font-size: 12px; font-weight: 700; }
+.rp-count { font-size: 10px; color: var(--text-dim); }
+.rp-exit {
+  width: 26px; height: 26px; flex: 0 0 auto;
+  background: transparent; color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; cursor: pointer;
+}
+.rp-exit:hover { color: #ef4444; border-color: #ef4444; }

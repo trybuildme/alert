@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useSatelliteStore, useUIStore, useInspectStore, useLayerStore } from '../../stores'
+import { useReplayStore } from '../../stores/replay'
 import { ALL_PRODUCTS, BASEMAPS } from '../../config/mapConfig'
 import NotificationBell from './NotificationBell'
 
@@ -21,6 +22,8 @@ export default function TopBar() {
   const toggleForecastPanel = useUIStore((s) => s.toggleForecastPanel)
   const eqPanelOpen = useUIStore((s) => s.eqPanelOpen)
   const toggleEqPanel = useUIStore((s) => s.toggleEqPanel)
+  const replayActive = useReplayStore((s) => s.active)
+  const toggleReplay = useReplayStore((s) => s.toggle)
   const openInspect = useInspectStore((s) => s.openInspect)
 
   return (
@@ -97,6 +100,20 @@ export default function TopBar() {
           title="Real-time earthquake monitor: detected events from USGS — live map, alerts, statistics"
         >
           Quakes
+        </button>
+        <button
+          className={`switch-btn ${replayActive ? 'active' : ''}`}
+          onClick={() => {
+            toggleReplay()
+            if (!replayActive) {
+              const ls = useLayerStore.getState()
+              const eq = ls.layers.find((x) => x.id === 'earthquakes')
+              if (eq && !eq.visible) ls.toggle('earthquakes')
+            }
+          }}
+          title="Time-lapse replay of historical earthquakes — pauses the live feed until you exit"
+        >
+          Replay
         </button>
       </div>
 

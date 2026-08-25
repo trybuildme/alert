@@ -7,6 +7,7 @@
 import { useEffect } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { useUIStore } from '../stores'
+import { useReplayStore } from '../stores/replay'
 
 interface EqFeature {
   type: 'Feature'
@@ -42,11 +43,15 @@ function isWithin24h(originTimeIso: string | undefined): boolean {
 export function useEarthquakes(map: maplibregl.Map | null) {
   const eqMinMag = useUIStore((s) => s.eqMinMag)
   const eqSelectedUid = useUIStore((s) => s.eqSelectedUid)
+  // Replay mode owns the 'earthquakes' source; stand down entirely so
+  // live fetch/SSE/prune can't fight the replay frames.
+  const replayActive = useReplayStore((s) => s.active)
 
   // Initial load (last 24 h only — older history never reaches the map)
-  // + refetch when the magnitude filter changes
+  // + refetch when the magnitude filter changes. Re-runs on replay exit
+  // to restore live data.
   useEffect(() => {
-    if (!map) return
+    if (!map || replayActive) return
     let cancelled = false
     ;(async () => {
       try {
@@ -61,12 +66,12 @@ export function useEarthquakes(map: maplibregl.Map | null) {
       } catch { /* backend down: layer stays empty */ }
     })()
     return () => { cancelled = true }
-  }, [map, eqMinMag])
+  }, [map, eqMinMag, replayActive])
 
   // Age out events as the clock moves: every 10 min drop anything older
   // than 24 h so yesterday's markers quietly disappear without a refetch
   useEffect(() => {
-    if (!map) return
+    if (!map || replayActive) return
     const timer = setInterval(() => {
       const src = map.getSource('earthquakes') as maplibregl.GeoJSONSource | null
       if (!src || !map.isStyleLoaded()) return
@@ -84,7 +89,7 @@ export function useEarthquakes(map: maplibregl.Map | null) {
 
   // Live updates over SSE — append-only for hazard.created
   useEffect(() => {
-    if (!map) return
+    if (!map || replayActive) return
     let es: EventSource | null = null
     let retry: ReturnType<typeof setTimeout> | undefined
 
@@ -126,7 +131,7 @@ export function useEarthquakes(map: maplibregl.Map | null) {
       es?.close()
       if (retry) clearTimeout(retry)
     }
-  }, [map])
+  }, [map, replayActive])
 
   // Selection ring filter follows UI selection
   useEffect(() => {

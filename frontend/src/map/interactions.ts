@@ -1,0 +1,88 @@
+// Click/dblclick interaction routing for the NOAH map.
+//
+// Click priority: active draw tool > earthquake selection > farm inspect
+// > drawn-feature selection > generic inspect. Dblclick finishes open
+// line/polygon sketches.
+
+import type maplibregl from 'maplibre-gl'
+import { useDrawingStore, useInspectStore, useUIStore } from '../stores'
+
+export function attachInteractions(map: maplibregl.Map): void {
+  const openInspect = (lat: number, lon: number) =>
+    useInspectStore.getState().openInspect(lat, lon)
+
+  map.on('click', (e) => {
+    const drawState = useDrawingStore.getState()
+    if (drawState.activeTool) {
+      handleDrawClick(map, e.lngLat.lng, e.lngLat.lat)
+      return
+    }
+
+    const eqHits = map.queryRenderedFeatures(e.point, { layers: ['eq-circle'] })
+    if (eqHits.length > 0) {
+      const uid = eqHits[0].properties?.uid as string | undefined
+      if (uid) {
+        map.setFilter('eq-selected', ['==', ['get', 'uid'], uid])
+        useUIStore.getState().setEqSelectedUid(uid)
+        if (!useUIStore.getState().eqPanelOpen) {
+          useUIStore.getState().toggleEqPanel()
+        }
+      }
+      return
+    }
+
+    const farmHits = map.queryRenderedFeatures(e.point, { layers: ['farms-fill'] })
+    if (farmHits.length > 0) {
+      const f = farmHits[0]
+      const props = f.properties as Record<string, number>
+      const center: [number, number] = [props.center_lon, props.center_lat]
+      map.flyTo({ center, zoom: 14, speed: 1.4, essential: true })
+      openInspect(props.center_lat, props.center_lon)
+      return
+    }
+
+    const drawnHits = map.queryRenderedFeatures(e.point, {
+      layers: ['draw-fill', 'draw-line', 'draw-point'],
+    })
+    if (drawnHits.length > 0) {
+      const fid = drawnHits[0].properties?.__fid as number | undefined
+      useDrawingStore.getState().selectFeature(fid ?? null)
+      return
+    }
+    if (useDrawingStore.getState().selectedId !== null) {
+      useDrawingStore.getState().selectFeature(null)
+      return
+    }
+    openInspect(e.lngLat.lat, e.lngLat.lng)
+  })
+
+  map.on('dblclick', (e) => {
+    const { activeTool, finishSketch } = useDrawingStore.getState()
+    if (activeTool === 'polygon' || activeTool === 'line') {
+      e.preventDefault()
+      finishSketch()
+    }
+  })
+}
+
+function handleDrawClick(map: maplibregl.Map, lng: number, lat: number) {
+  const state = useDrawingStore.getState()
+  const tool = state.activeTool
+  if (!tool) return
+
+  if (tool === 'point') {
+    state.addSketchPoint([lng, lat])
+    setTimeout(() => useDrawingStore.getState().finishSketch(), 0)
+    return
+  }
+  if ((tool === 'rectangle' || tool === 'circle') && state.sketchCoords.length >= 2) {
+    state.finishSketch()
+    return
+  }
+  state.addSketchPoint([lng, lat])
+  if (tool === 'rectangle' || tool === 'circle') {
+    if (useDrawingStore.getState().sketchCoords.length === 2) {
+      setTimeout(() => useDrawingStore.getState().finishSketch(), 0)
+    }
+  }
+}
