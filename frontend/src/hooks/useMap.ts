@@ -173,6 +173,9 @@ async function loadPostStyleData(map: maplibregl.Map) {
     ['rainfall', '/api/rainfall'],
     ['alerts', '/api/alerts'],
     ['cyclones', '/api/cyclones'],
+    ['volcanoes', '/api/volcanoes'],
+    // tsunami feed may be temporarily unavailable -> honest empty layer
+    ['tsunamis', '/api/tsunamis'],
   ]
   for (const [sourceId, url] of loads) {
     const data = await fetchGeoJSON(url)

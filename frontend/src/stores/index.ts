@@ -89,6 +89,14 @@ const INITIAL_LAYERS: LayerInfo[] = [
     ],
   },
   {
+    id: 'tsunamis', name: 'Tsunami Bulletins', description: 'Issued tsunami products from NOAA/NWS tsunami.gov — official bulletins, not forecasts', visible: false, opacity: 1,
+    legend: [{ label: 'Issued bulletin', color: '#22d3ee' }],
+  },
+  {
+    id: 'volcanoes', name: 'Volcano Sites', description: 'PHIVOLCS-monitored volcano registry (static sites, not live alert levels)', visible: false, opacity: 1,
+    legend: [{ label: 'Monitored volcano', color: '#f97316' }],
+  },
+  {
     id: 'cyclones', name: 'Cyclone Tracks', description: 'Active tropical cyclones — NOAA IBTrACS best-track (~3× weekly, not operational warnings). Colors per PAGASA / panahon.gov.ph classification', visible: false, opacity: 1,
     legend: [
       { label: 'Tropical Depression', color: '#00e400' },

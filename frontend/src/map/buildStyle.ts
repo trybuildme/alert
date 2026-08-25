@@ -242,7 +242,7 @@ export function buildStyle() {
   // --- Thematic GeoJSON placeholders (data loaded post-style) ---
   const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
   ;['flood-risk', 'rainfall', 'alerts', 'farms', 'weather-stations', 'cyclones',
-    'cyclones-fcst', 'earthquakes',
+    'cyclones-fcst', 'earthquakes', 'tsunamis', 'volcanoes',
     // roads/waterways/places: geometry lazy-loaded per viewport on moveend
     'roads', 'roads-minor', 'waterways', 'places'].forEach((id) => {
     sources[id] = { type: 'geojson', data: empty }
@@ -541,6 +541,66 @@ export function buildStyle() {
         'text-halo-color': 'rgba(0,0,0,0.8)',
         'text-halo-width': 1.4,
       },
+    } as unknown as maplibregl.SymbolLayerSpecification,
+    // --- Tsunamis: issued bulletins from NOAA/NWS tsunami.gov (CAP
+    // feed) — cyan rings; label carries the product title.
+    {
+      id: 'tsunami-circle',
+      type: 'circle',
+      source: 'tsunamis',
+      minzoom: 2,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 7, 8, 16],
+        'circle-color': 'rgba(34,211,238,0.25)',
+        'circle-stroke-color': '#22d3ee',
+        'circle-stroke-width': 2,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      id: 'tsunami-label',
+      type: 'symbol',
+      source: 'tsunamis',
+      minzoom: 3,
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'title'],
+        'text-size': 10,
+        'text-font': ['Noto Sans Bold'],
+        'text-offset': [0, 1.4],
+        'text-anchor': 'top',
+      },
+      paint: { 'text-color': '#a5f3fc', 'text-halo-color': '#083344', 'text-halo-width': 1.4 },
+    } as unknown as maplibregl.SymbolLayerSpecification,
+    // --- Volcanoes: PHIVOLCS-monitored site registry (static) —
+    // orange markers; registry only, NOT live alert levels.
+    {
+      id: 'volcano-circle',
+      type: 'circle',
+      source: 'volcanoes',
+      minzoom: 4,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4.5, 10, 9],
+        'circle-color': '#f97316',
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.4,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      id: 'volcano-label',
+      type: 'symbol',
+      source: 'volcanoes',
+      minzoom: 6,
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'name'],
+        'text-size': 10,
+        'text-font': ['Noto Sans Bold'],
+        'text-offset': [0, -1.3],
+        'text-anchor': 'bottom',
+      },
+      paint: { 'text-color': '#fdba74', 'text-halo-color': '#431407', 'text-halo-width': 1.4 },
     } as unknown as maplibregl.SymbolLayerSpecification,
     {
       id: 'farms-fill',

@@ -5,14 +5,15 @@
 // cyclone:    polls /api/cyclones; a storm SID never seen before counts as
 //             "new cyclone detected". First fetch initializes the baseline
 //             without notifying (no spam about pre-existing storms).
-// tsunami /   reserved channels — no machine-readable source exists yet;
-// flood:      the bell architecture accepts them the moment their modules
-//             publish events.
+// tsunami:    polls /api/tsunamis (tsunami.gov CAP feed); a bulletin uid
+//             never seen before lands unread in the bell.
+// flood:      reserved channel — no machine-readable source exists yet.
 
 import { useEffect } from 'react'
 import { useNotifStore, type NotifItem } from '../stores/notifications'
 
 const CYCLONE_POLL_MS = 5 * 60_000
+const TSUNAMI_POLL_MS = 2 * 60_000   // matches backend feed cache TTL window
 
 export function useNotificationFeeds() {
   useEffect(() => {
@@ -95,13 +96,44 @@ export function useNotificationFeeds() {
     pollCyclones()
     const cycTimer = setInterval(pollCyclones, CYCLONE_POLL_MS)
 
-    // NOTE: tsunami and flood channels are intentionally absent — no real
-    // source exists. Wire them here when their modules ship.
+    // ---- Tsunami: new-bulletin detection by uid diff (tsunami.gov) ----
+    let knownTsunamiIds: Set<string> | null = null
+    const pollTsunamis = async () => {
+      try {
+        const res = await fetch('/api/tsunamis')
+        if (!res.ok) return
+        const body = await res.json()
+        if (body.source === 'unavailable') return
+        const current = new Set<string>(
+          body.features.map((f: { properties: { uid: string } }) =>
+            f.properties.uid))
+        if (knownTsunamiIds !== null) {
+          for (const f of body.features) {
+            const uid = f.properties.uid as string
+            if (knownTsunamiIds.has(uid)) continue
+            const item: NotifItem = {
+              id: `tsunami:${uid}`,
+              kind: 'tsunami',
+              title: `Tsunami bulletin · ${f.properties.title ?? uid}`,
+              detail: f.properties.summary || undefined,
+              at: f.properties.updated ?? new Date().toISOString(),
+            }
+            add(item)
+          }
+        }
+        knownTsunamiIds = current
+      } catch { /* upstream unavailable */ }
+    }
+    pollTsunamis()
+    const tsuTimer = setInterval(pollTsunamis, TSUNAMI_POLL_MS)
+
+    // NOTE: flood channel is intentionally absent — no real source exists.
 
     return () => {
       es?.close()
       if (retry) clearTimeout(retry)
       clearInterval(cycTimer)
+      clearInterval(tsuTimer)
     }
   }, [])
 }
