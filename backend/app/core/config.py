@@ -68,6 +68,21 @@ class Settings(BaseSettings):
 
     # --- Earthquake intelligence module (docs/earthquake/) ---
     EARTHQUAKE_ENABLED: bool = True
+    # --- Flood monitoring module (docs/flood/FLOOD.md) ---
+    FLOOD_ENABLED: bool = True
+    FLOOD_DB_PATH: str = Field(
+        default_factory=lambda: os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__)))), "data", "flood.db"),
+        validation_alias=AliasChoices("NOAH_FLOOD_DB"))
+    FLOOD_POLL_INTERVAL: int = 600
+    FLOOD_ALERT_ENABLED: bool = True
+    FLOOD_THRESHOLDS_PATH: str = Field(
+        "", validation_alias=AliasChoices("NOAH_FLOOD_THRESHOLDS"))
+    # Authorized PAGASA water-level feed (none exists publicly yet).
+    NOAH_FLOOD_PAGASA_URL: str = Field(
+        "", validation_alias=AliasChoices("NOAH_FLOOD_PAGASA_URL"))
+
     EARTHQUAKE_POLL_INTERVAL: int = 300
     EARTHQUAKE_MIN_MAGNITUDE: float = 2.5
     # Ingestion lookback window in minutes (overlaps slightly to be safe)

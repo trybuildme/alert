@@ -22,9 +22,9 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.api import (admin_boundaries, cyclone_forecast, cyclones,
-                     elevation, earthquakes, esri_proxy, gibs_proxy, health,
-                     inspect, metadata, metrics, osm_features, push, search,
-                     tiles, tsunamis, volcanoes)
+                     elevation, earthquakes, esri_proxy, flood as flood_api,
+                     gibs_proxy, health, inspect, metadata, metrics,
+                     osm_features, push, search, tiles, tsunamis, volcanoes)
 from app.cache.redis_cache import TileCache
 from app.core.auth import AuthMiddleware
 from app.core.config import settings
@@ -36,6 +36,11 @@ from app.hazards.push import WebPushChannel
 from app.hazards.providers.phivolcs import PhivolcsProvider
 from app.hazards.providers.usgs import UsgsProvider
 from app.hazards.base import EventBus
+from app.flood.ingest import FloodIngestWorker
+from app.flood.providers.open_meteo_rain import OpenMeteoRainProvider
+from app.flood.providers.pagasa_water import PagasaWaterLevelProvider
+from app.flood.stations import registry as flood_station_registry
+from app.flood.store import FloodStore
 from app.hazards.db import open_store
 from app.services.tile_service import TileService
 
@@ -124,11 +129,90 @@ async def lifespan(application: FastAPI):
                 await asyncio.sleep(24 * 3600)
 
         retention_task = asyncio.create_task(retention_loop())
+
+    # --- Flood monitoring module ---
+    flood_retention_task = None
+    if settings.FLOOD_ENABLED:
+        flood_store = FloodStore(settings.FLOOD_DB_PATH)
+        flood_store.upsert_stations(flood_station_registry())
+        rain_stations = [s for s in flood_station_registry()
+                         if s["kind"] == "rainfall"]
+        water_stations = [s for s in flood_station_registry()
+                          if s["kind"] == "water_level"]
+        flood_providers = [
+            OpenMeteoRainProvider(rain_stations),
+            PagasaWaterLevelProvider(water_stations,
+                                     settings.NOAH_FLOOD_PAGASA_URL),
+        ]
+        from app.core.config import settings as _s  # local alias
+
+        async def on_flood_alert(alert):
+            # Reuse the earthquake notification channels: same dispatcher
+            # semantics, flood payload shape.
+            decision = {"severity": alert["level"],
+                        "rule_name": f"flood:{alert['station_id']}"}
+            event = {
+                "summary": (f"Flood {alert['level']} · {alert['station_name']}: "
+                            f"{alert['reason']}"),
+                "event_uid": alert["id"],
+            }
+            await flood_dispatcher.dispatch(decision, event,
+                                            flood_bus.publish)
+
+        flood_bus = EventBus()
+        flood_dispatcher = NotificationDispatcher()
+        flood_dispatcher.register("dashboard", lambda payload: None)
+        if settings.SMTP_HOST and settings.SMTP_TO:
+            flood_dispatcher.register("email", EmailChannel(
+                settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER,
+                settings.SMTP_PASSWORD, settings.SMTP_FROM, settings.SMTP_TO))
+        if settings.WEBHOOK_URL:
+            flood_dispatcher.register("webhook", WebhookChannel(
+                settings.WEBHOOK_URL))
+        if settings.VAPID_PRIVATE_KEY and settings.VAPID_PUBLIC_KEY:
+            flood_dispatcher.register("webpush", WebPushChannel(
+                flood_store, settings.VAPID_PRIVATE_KEY,
+                settings.VAPID_PUBLIC_KEY, settings.VAPID_SUBJECT))
+
+        flood_worker = FloodIngestWorker(
+            flood_providers, flood_store,
+            thresholds_path=settings.FLOOD_THRESHOLDS_PATH,
+            poll_interval=settings.FLOOD_POLL_INTERVAL,
+            alert_enabled=settings.FLOOD_ALERT_ENABLED,
+            on_alert=on_flood_alert)
+        application.state.flood = {
+            "store": flood_store, "bus": flood_bus, "worker": flood_worker,
+            "enabled": True,
+        }
+        flood_worker.start()
+        logger.info("flood module enabled (%d stations, poll every %ss)",
+                    len(flood_station_registry()), settings.FLOOD_POLL_INTERVAL)
+
+        async def flood_retention_loop():
+            while True:
+                try:
+                    removed = await asyncio.to_thread(
+                        flood_store.prune_observations, 90)
+                    pruned_a = await asyncio.to_thread(
+                        flood_store.prune_alerts, 30)
+                    if removed or pruned_a:
+                        logger.info("flood retention pruned %d obs / %d alerts",
+                                    removed, pruned_a)
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("flood retention failed: %s", exc)
+                await asyncio.sleep(24 * 3600)
+
+        flood_retention_task = asyncio.create_task(flood_retention_loop())
     yield
     if settings.EARTHQUAKE_ENABLED and hasattr(application.state, "earthquakes"):
         retention_task.cancel()
         await application.state.earthquakes["worker"].stop()
         application.state.earthquakes["store"].close()
+    if settings.FLOOD_ENABLED and getattr(application.state, "flood", None):
+        if flood_retention_task:
+            flood_retention_task.cancel()
+        await application.state.flood["worker"].stop()
+        application.state.flood["store"].close()
 
 
 app = FastAPI(title=settings.APP_NAME, version=settings.VERSION, lifespan=lifespan)
@@ -163,6 +247,7 @@ app.include_router(earthquakes.router)
 app.include_router(push.router)
 app.include_router(tsunamis.router)
 app.include_router(volcanoes.router)
+app.include_router(flood_api.router)
 app.include_router(elevation.router)
 app.include_router(health.router)
 app.include_router(metrics.router)
