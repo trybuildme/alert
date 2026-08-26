@@ -5,6 +5,10 @@
 // cyclone:    polls /api/cyclones; a storm SID never seen before counts as
 //             "new cyclone detected". First fetch initializes the baseline
 //             without notifying (no spam about pre-existing storms).
+// volcano:    polls /api/volcanoes/activity; notifies when a site's
+//             assessment level ESCALATES (monitored → unrest-evidence →
+//             active-curated) or a new strongest quake appears at an
+//             already-elevated site. Baseline seeded silently.
 // tsunami:    polls /api/tsunamis (tsunami.gov CAP feed); a bulletin uid
 //             never seen before lands unread in the bell.
 // flood:      reserved channel — no machine-readable source exists yet.
@@ -14,6 +18,13 @@ import { useNotifStore, type NotifItem } from '../stores/notifications'
 
 const CYCLONE_POLL_MS = 5 * 60_000
 const TSUNAMI_POLL_MS = 2 * 60_000   // matches backend feed cache TTL window
+const VOLCANO_POLL_MS = 5 * 60_000
+
+const VOLCANO_LEVEL_WEIGHT: Record<string, number> = {
+  monitored: 1,
+  'unrest-evidence': 2,
+  'active-curated': 3,
+}
 
 export function useNotificationFeeds() {
   useEffect(() => {
@@ -127,6 +138,61 @@ export function useNotificationFeeds() {
     pollTsunamis()
     const tsuTimer = setInterval(pollTsunamis, TSUNAMI_POLL_MS)
 
+    // ---- Volcano: assessment-level escalation detection ----
+    interface VolcanoActivity {
+      uid: string
+      name: string
+      level: string
+      signals: string[]
+      seismicity?: {
+        total_7d?: number | null
+        strongest_uid?: string | null
+        strongest_magnitude?: number | null
+      }
+      last_known_eruption?: string | null
+    }
+    let knownVolcanoes: Map<string, { level: string; strongestUid: string }> | null = null
+    const pollVolcanoes = async () => {
+      try {
+        const res = await fetch('/api/volcanoes/activity')
+        if (!res.ok) return
+        const body = await res.json()
+        if (body.source === 'unavailable' || !Array.isArray(body.volcanoes)) return
+        const next = new Map<string, { level: string; strongestUid: string }>()
+        for (const v of body.volcanoes as VolcanoActivity[]) {
+          const strongestUid = v.seismicity?.strongest_uid ?? ''
+          const prev = knownVolcanoes?.get(v.uid)
+          const prevWeight = prev ? VOLCANO_LEVEL_WEIGHT[prev.level] ?? 1 : 0
+          const weight = VOLCANO_LEVEL_WEIGHT[v.level] ?? 1
+          const escalated = prev !== undefined && weight > prevWeight
+          // New strongest event at an already-elevated site = fresh activity.
+          const freshEvent = prev !== undefined && weight >= 2 &&
+            strongestUid !== '' && prev.strongestUid !== strongestUid
+          if (escalated || freshEvent) {
+            const severity = v.level === 'active-curated' ? 'HIGH' : 'MODERATE'
+            const headline = escalated && weight >= 3
+              ? `Volcanic activity · ${v.name}`
+              : escalated
+                ? `Volcanic unrest evidence · ${v.name}`
+                : `New seismicity near ${v.name}`
+            add({
+              id: `volcano:${v.uid}:${freshEvent && !escalated ? strongestUid : v.level}`,
+              kind: 'volcano',
+              severity,
+              title: headline,
+              detail: (v.signals && v.signals[0]) ||
+                `${v.seismicity?.total_7d ?? 0} earthquakes within 30 km / 7 d`,
+              at: new Date().toISOString(),
+            })
+          }
+          next.set(v.uid, { level: v.level, strongestUid })
+        }
+        knownVolcanoes = next
+      } catch { /* backend unavailable */ }
+    }
+    pollVolcanoes()
+    const volTimer = setInterval(pollVolcanoes, VOLCANO_POLL_MS)
+
     // NOTE: flood channel is intentionally absent — no real source exists.
 
     return () => {
@@ -134,6 +200,7 @@ export function useNotificationFeeds() {
       if (retry) clearTimeout(retry)
       clearInterval(cycTimer)
       clearInterval(tsuTimer)
+      clearInterval(volTimer)
     }
   }, [])
 }

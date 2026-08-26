@@ -59,3 +59,29 @@ def test_detail_uids_use_slug_form(client):
 
 def test_detail_unknown_uid_404(client):
     assert client.get("/api/volcanoes/not-a-volcano").status_code == 404
+
+
+def test_activity_endpoint_summarizes_all_sites(client):
+    r = client.get("/api/volcanoes/activity")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["source"] == "assessment-synthesis"
+    assert body["generated_at"].endswith("Z")
+    by_name = {v["name"]: v for v in body["volcanoes"]}
+    assert len(body["volcanoes"]) >= 13
+    # curated actives surface as active-curated level
+    assert by_name["Kanlaon"]["level"] == "active-curated"
+    assert by_name["Kanlaon"]["active_now"] is True
+    assert by_name["Pinatubo"]["level"] == "monitored"
+    for v in body["volcanoes"]:
+        assert v["level"] in ("active-curated", "unrest-evidence", "monitored")
+        assert set(v["seismicity"]) == {
+            "total_7d", "count_24h", "strongest_uid", "strongest_magnitude"}
+        assert "not official" in body["disclaimer"]
+
+
+def test_detail_route_still_beats_uid_catchall(client):
+    """'/activity' must resolve to the activity endpoint, not a uid."""
+    r = client.get("/api/volcanoes/activity")
+    assert r.status_code == 200
+    assert "volcanoes" in r.json()

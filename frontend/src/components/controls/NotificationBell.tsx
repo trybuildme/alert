@@ -12,6 +12,7 @@ const KIND_META: Record<NotifKind, { icon: string; color: string; label: string 
   cyclone: { icon: '🌀', color: '#38bdf8', label: 'Cyclone' },
   tsunami: { icon: '🌊', color: '#22d3ee', label: 'Tsunami' },
   flood: { icon: '💧', color: '#1e88e5', label: 'Flood' },
+  volcano: { icon: '🌋', color: '#f97316', label: 'Volcano' },
 }
 
 function ago(iso: string): string {

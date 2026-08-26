@@ -25,6 +25,10 @@ const ITEMS: NotifItem[] = [
     title: 'M5.8 — 12 km NE of Lucban', at: new Date(Date.now() - 120_000).toISOString() },
   { id: 'cyclone:ibtracs:9', kind: 'cyclone',
     title: 'New cyclone: Bagyo', detail: 'Tropical Storm', at: new Date().toISOString() },
+  { id: 'volcano:phivolcs-site:kanlaon:active-curated', kind: 'volcano', severity: 'HIGH',
+    title: 'Volcanic activity · Kanlaon',
+    detail: 'PHIVOLCS public reporting flags ongoing eruptive/unrest activity',
+    at: new Date().toISOString() },
 ]
 
 beforeEach(() => {
@@ -33,10 +37,18 @@ beforeEach(() => {
 
 describe('NotificationBell', () => {
   it('shows an unread badge and accessible label while items are unread', () => {
-    useNotifStore.setState({ items: ITEMS, unread: 2 })
-    renderBell()
-    expect(screen.getByRole('button', { name: /2 unread/ })).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    useNotifStore.setState({ items: ITEMS, unread: ITEMS.length })
+    render(<I18nProvider><NotificationBell /></I18nProvider>)
+    expect(screen.getByRole('button', { name: /3 unread/ })).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+  })
+
+  it('renders volcano notifications with the volcano icon', () => {
+    useNotifStore.setState({ open: true, items: ITEMS, unread: 0 })
+    render(<I18nProvider><NotificationBell /></I18nProvider>)
+    expect(screen.getByText('Volcanic activity · Kanlaon')).toBeInTheDocument()
+    expect(screen.getByText(/PHIVOLCS public reporting flags/)).toBeInTheDocument()
+    expect(screen.getByText('🌋')).toBeInTheDocument()
   })
 
   it('caps the badge at "9+"', () => {
@@ -51,7 +63,7 @@ describe('NotificationBell', () => {
 
   it('opens a dropdown listing notifications and clears the badge', async () => {
     const user = userEvent.setup()
-    useNotifStore.setState({ items: ITEMS, unread: 2 })
+    useNotifStore.setState({ items: ITEMS, unread: ITEMS.length })
     renderBell()
     await user.click(screen.getByRole('button', { name: /unread/ }))
     expect(screen.getByText('NOTIFICATIONS')).toBeInTheDocument()
@@ -70,7 +82,7 @@ describe('NotificationBell', () => {
 
   it('marks all read via the header button without closing the dropdown', async () => {
     const user = userEvent.setup()
-    useNotifStore.setState({ open: true, items: ITEMS, unread: 2 })
+    useNotifStore.setState({ open: true, items: ITEMS, unread: ITEMS.length })
     renderBell()
     await user.click(screen.getByText('Mark all read'))
     expect(useNotifStore.getState().unread).toBe(0)

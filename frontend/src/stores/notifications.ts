@@ -3,12 +3,15 @@
 // Sources wired today:
 //   earthquake  live SSE hazard.alert + persisted /api/earthquakes/alerts
 //   cyclone     new-storm detection by diffing /api/cyclones
-//   tsunami     NO SOURCE EXISTS YET — reserved; nothing is fabricated
+//   volcano     level transitions from polled /api/volcanoes/activity
+//               (curated flag + live nearby seismicity synthesis)
+//   tsunami     polls /api/tsunamis (tsunami.gov CAP bulletins)
 //   flood       NO SOURCE EXISTS YET — reserved for the flood module
 
 import { create } from 'zustand'
 
-export type NotifKind = 'earthquake' | 'cyclone' | 'tsunami' | 'flood'
+export type NotifKind =
+  | 'earthquake' | 'cyclone' | 'tsunami' | 'flood' | 'volcano'
 
 export interface NotifItem {
   id: string

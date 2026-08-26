@@ -9,6 +9,8 @@ GET /api/volcanoes/{uid} -> single Feature + nearby seismicity summary
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -77,6 +79,49 @@ def _seismicity_summary(request: Request, lat: float, lon: float) -> dict:
         "count_24h": count_24h,
         "strongest": (strongest["properties"] if strongest else None),
     }
+
+
+@router.get("/activity")
+async def activity(request: Request) -> JSONResponse:
+    """Compact per-volcano assessment summaries for the notification
+    bell: one call covering all monitored sites (each site runs its own
+    30 km / 7 d seismicity window). Polled by the frontend — keep it
+    cheap; the underlying queries are indexed bbox reads."""
+    out = []
+    features = volcano_features()
+    for feature in features:
+        lon, lat = feature["geometry"]["coordinates"]
+        props = feature["properties"]
+        seismicity = _seismicity_summary(request, lat, lon)
+        assessment = build_assessment(props, seismicity)
+        strongest = (seismicity.get("strongest") or {}) \
+            if seismicity.get("available") else {}
+        out.append({
+            "uid": props["uid"],
+            "name": props["name"],
+            "latitude": lat,
+            "longitude": lon,
+            "active_now": bool(props.get("active_now")),
+            "level": assessment["level"],
+            "label": assessment["label"],
+            "color": assessment["color"],
+            "signals": assessment["signals"],
+            "seismicity": {
+                "total_7d": seismicity.get("total_7d"),
+                "count_24h": seismicity.get("count_24h"),
+                "strongest_uid": strongest.get("uid"),
+                "strongest_magnitude": strongest.get("magnitude"),
+            },
+            "last_known_eruption": props.get("last_known_eruption"),
+        })
+    return JSONResponse({
+        "generated_at": datetime.now(timezone.utc)
+            .strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "source": "assessment-synthesis",
+        "disclaimer": ("Automated NOAH assessments — not official "
+                       "PHIVOLCS Alert Levels."),
+        "volcanoes": out,
+    })
 
 
 @router.get("/{uid}")
