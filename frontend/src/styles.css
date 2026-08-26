@@ -546,3 +546,7 @@ html, body, #root { height: 100%; overflow: hidden; background: var(--bg); color
 .vc-assess-active-curated { background: rgba(34, 197, 94, 0.12); }
 .vc-assess-unrest-evidence { background: rgba(245, 158, 11, 0.12); }
 .vc-assess-monitored { background: rgba(148, 163, 184, 0.12); }
+
+/* Elevation profile (draw & measure, line tool) */
+.elev-profile { margin-top: 8px; }
+.elev-profile svg { display: block; background: rgba(56, 189, 248, 0.04); border-radius: 6px; margin-top: 4px; }

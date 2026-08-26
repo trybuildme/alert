@@ -22,9 +22,9 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.api import (admin_boundaries, cyclone_forecast, cyclones,
-                     earthquakes, esri_proxy, gibs_proxy, health, inspect,
-                     metadata, metrics, osm_features, push, search, tiles,
-                     tsunamis, volcanoes)
+                     elevation, earthquakes, esri_proxy, gibs_proxy, health,
+                     inspect, metadata, metrics, osm_features, push, search,
+                     tiles, tsunamis, volcanoes)
 from app.cache.redis_cache import TileCache
 from app.core.auth import AuthMiddleware
 from app.core.config import settings
@@ -163,6 +163,7 @@ app.include_router(earthquakes.router)
 app.include_router(push.router)
 app.include_router(tsunamis.router)
 app.include_router(volcanoes.router)
+app.include_router(elevation.router)
 app.include_router(health.router)
 app.include_router(metrics.router)
 
