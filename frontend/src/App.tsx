@@ -23,6 +23,7 @@ const MeasurementPanel = lazy(() => import('./components/panels/MeasurementPanel
 import VolcanoPopup from './components/panels/VolcanoPopup'
 import ResolutionIndicator from './components/panels/ResolutionIndicator'
 import MapTimestamp from './components/panels/MapTimestamp'
+import ProfilePopup from './components/panels/ProfilePopup'
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -49,6 +50,7 @@ export default function App() {
           <MeasurementPanel />
         </Suspense>
         <VolcanoPopup />
+        <ProfilePopup />
         <ResolutionIndicator />
         <MapTimestamp />
         <MapControls />

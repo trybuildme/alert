@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useDrawingStore, useInspectStore, useMapStore } from '../../stores'
 import type { DrawTool, InspectData } from '../../stores'
 import { measurementFor } from '../../hooks/useDrawing'
-import ElevationProfile from './ElevationProfile'
 
 const TOOLS: { id: Exclude<DrawTool, null>; label: string; icon: string; hint: string }[] = [
   { id: 'point', label: 'Point', icon: '●', hint: 'Click to drop a point' },
@@ -98,11 +97,9 @@ export default function MeasurementPanel() {
       {selected && (
         <div className="measurement-detail">
           <div className="section-title">Measurements</div>
-          {selected.tool === 'line' && <ElevationProfile feature={selected} />}
-          {selected.tool !== 'line' &&
-            measurementFor(selected).map((row) => (
-              <div key={row} className="kv"><span>·</span><b>{row}</b></div>
-            ))}
+          {measurementFor(selected).map((row) => (
+            <div key={row} className="kv"><span>·</span><b>{row}</b></div>
+          ))}
           {selected.tool !== 'point' && analysis && (
             <>
               <div className="section-title">Area analysis</div>

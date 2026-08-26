@@ -109,8 +109,18 @@ function PathStats({ feature, elevations }: {
   )
 }
 
-export default function ElevationProfile({ feature }: { feature: DrawnFeature }) {
-  const selectFeature = useDrawingStore((s) => s.selectFeature)
+export default function ElevationProfile({
+  feature,
+  width = 300,
+  height = 110,
+  showHeader = true,
+}: {
+  feature: DrawnFeature
+  width?: number
+  height?: number
+  /** false when rendered inside a wrapper that provides its own header */
+  showHeader?: boolean
+}) {
   const coords = useMemo(
     () => resampleLine(feature.coordinates as [number, number][], MAX_SAMPLES),
     [feature.id, feature.coordinates],
@@ -139,7 +149,7 @@ export default function ElevationProfile({ feature }: { feature: DrawnFeature })
   if (!data) {
     return (
       <div className="elev-profile" data-testid="elevation-profile">
-        <div className="section-title">Elevation profile</div>
+        {showHeader && <div className="section-title">Elevation profile</div>}
         {/* Path stats are available immediately, before DEM arrives. */}
         <PathStats feature={feature} elevations={null} />
         {error
@@ -149,8 +159,8 @@ export default function ElevationProfile({ feature }: { feature: DrawnFeature })
     )
   }
 
-  const W = 300
-  const H = 110
+  const W = width
+  const H = height
   const PAD = 6
   const els = data.elevations_m
   const minEl = Math.min(...els)
@@ -164,15 +174,9 @@ export default function ElevationProfile({ feature }: { feature: DrawnFeature })
 
   return (
     <div className="elev-profile" data-testid="elevation-profile">
-      <div className="section-title">
-        Elevation profile
-        <button
-          className="close-btn"
-          onClick={() => selectFeature(null)}
-          title="Close profile"
-          style={{ marginLeft: 'auto' }}
-        >✕</button>
-      </div>
+      {showHeader && (
+        <div className="section-title">Elevation profile</div>
+      )}
       <PathStats feature={feature} elevations={els} />
       <svg width={W} height={H} role="img" aria-label="Elevation cross-section">
         <defs>

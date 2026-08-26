@@ -550,3 +550,17 @@ html, body, #root { height: 100%; overflow: hidden; background: var(--bg); color
 /* Elevation profile (draw & measure, line tool) */
 .elev-profile { margin-top: 8px; }
 .elev-profile svg { display: block; background: rgba(56, 189, 248, 0.04); border-radius: 6px; margin-top: 4px; }
+
+/* Elevation profile popup (draw & measure, line A->B) */
+.profile-popup {
+  position: absolute; right: 12px; bottom: 16px; width: 396px;
+  max-height: calc(100% - 160px); z-index: 16;
+  background: var(--panel); backdrop-filter: blur(8px);
+  border: 1px solid var(--border); border-radius: 10px;
+  display: flex; flex-direction: column; overflow-y: auto;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+}
+.profile-popup-body { padding: 4px 14px 10px; }
+@media (max-width: 900px) {
+  .profile-popup { left: 244px; right: 12px; width: auto; }
+}
