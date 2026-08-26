@@ -243,6 +243,7 @@ export function buildStyle() {
   const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
   ;['flood-risk', 'rainfall', 'alerts', 'farms', 'weather-stations', 'cyclones',
     'cyclones-fcst', 'earthquakes', 'tsunamis', 'volcanoes',
+    'flood-rain-stations', 'flood-water-stations', 'flood-alerts',
     // roads/waterways/places: geometry lazy-loaded per viewport on moveend
     'roads', 'roads-minor', 'waterways', 'places'].forEach((id) => {
     sources[id] = { type: 'geojson', data: empty }
@@ -605,6 +606,86 @@ export function buildStyle() {
       },
       paint: { 'text-color': '#fdba74', 'text-halo-color': '#431407', 'text-halo-width': 1.4 },
     } as unknown as maplibregl.SymbolLayerSpecification,
+    // --- Flood monitoring: live station markers (real Open-Meteo
+    // rainfall; water gauges offline until an authorized feed exists) ---
+    {
+      id: 'flood-rain-circle',
+      type: 'circle',
+      source: 'flood-rain-stations',
+      minzoom: 3,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 4, 10, 9],
+        'circle-color': ['case',
+          ['>=', ['get', 'mmh'], 30], '#a855f7',
+          ['>=', ['get', 'mmh'], 15], '#ef4444',
+          ['>=', ['get', 'mmh'], 7.5], '#fb923c',
+          ['>=', ['get', 'mmh'], 2.5], '#facc15',
+          '#38bdf8'],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.2,
+        'circle-opacity': 0.95,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      id: 'flood-rain-label',
+      type: 'symbol',
+      source: 'flood-rain-stations',
+      minzoom: 7,
+      layout: {
+        visibility: 'none',
+        'text-field': ['concat', ['get', 'mmhLabel'], ' mm/h'],
+        'text-size': 9,
+        'text-font': ['Noto Sans Bold'],
+        'text-offset': [0, 1.3],
+        'text-anchor': 'top',
+      },
+      paint: { 'text-color': '#bae6fd', 'text-halo-color': '#082f49', 'text-halo-width': 1.2 },
+    } as unknown as maplibregl.SymbolLayerSpecification,
+    {
+      id: 'flood-water-circle',
+      type: 'circle',
+      source: 'flood-water-stations',
+      minzoom: 3,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': 5,
+        'circle-color': '#64748b',
+        'circle-stroke-color': '#cbd5e1',
+        'circle-stroke-width': 1,
+        'circle-opacity': 0.8,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      id: 'flood-alert-halo',
+      type: 'circle',
+      source: 'flood-alerts',
+      minzoom: 3,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 12, 10, 26],
+        'circle-color': '#ef4444',
+        'circle-opacity': 0.18,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
+    {
+      id: 'flood-alert-marker',
+      type: 'circle',
+      source: 'flood-alerts',
+      minzoom: 3,
+      layout: { visibility: 'none' },
+      paint: {
+        'circle-radius': 7,
+        'circle-color': ['match', ['get', 'level'],
+          'CRITICAL', '#a855f7',
+          'WARNING', '#ef4444',
+          'WATCH', '#fb923c',
+          'ADVISORY', '#facc15',
+          '#94a3b8'],
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5,
+      },
+    } as unknown as maplibregl.CircleLayerSpecification,
     {
       id: 'farms-fill',
       type: 'fill',

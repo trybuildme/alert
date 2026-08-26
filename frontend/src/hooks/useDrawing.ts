@@ -22,12 +22,14 @@ export function useDrawing(map: maplibregl.Map | null) {
   const { features, sketchCoords, activeTool, selectedId, cursorCoords } = useDrawingStore()
 
   useEffect(() => {
-    if (!map || !map.isStyleLoaded()) return
+    if (!map) return
 
     const polygons = features.filter((f) => f.tool !== 'point' && f.tool !== 'line')
     const lines = features.filter((f) => f.tool === 'line')
     const points = features.filter((f) => f.tool === 'point')
 
+    let cancelled = false
+    const apply = () => {
     const fillSrc = map.getSource('draw-fill') as maplibregl.GeoJSONSource | undefined
     const lineSrc = map.getSource('draw-line') as maplibregl.GeoJSONSource | undefined
     const pointSrc = map.getSource('draw-point') as maplibregl.GeoJSONSource | undefined
@@ -70,6 +72,29 @@ export function useDrawing(map: maplibregl.Map | null) {
       polygons.forEach((f) => {
         try { map.setFeatureState({ source: 'draw-fill', id: f.id }, { selected: f.id === selectedId }) } catch { /* noop */ }
       })
+    }
+    }  // end apply()
+
+    // Style may not be loaded when this effect first runs (same race
+    // class as useLayerVisibility): poll for readiness instead of a
+    // one-shot bail, otherwise the just-drawn shape never renders.
+    let retry: ReturnType<typeof setInterval> | undefined
+    let stop: ReturnType<typeof setTimeout> | undefined
+    if (!map.isStyleLoaded()) {
+      retry = setInterval(() => {
+        if (cancelled || map.isStyleLoaded()) {
+          clearInterval(retry)
+          clearTimeout(stop)
+          if (!cancelled) apply()
+        }
+      }, 200)
+      stop = setTimeout(() => clearInterval(retry), 30_000)
+    }
+
+    return () => {
+      cancelled = true
+      if (retry) clearInterval(retry)
+      if (stop) clearTimeout(stop)
     }
   }, [features, sketchCoords, activeTool, selectedId, map])
 

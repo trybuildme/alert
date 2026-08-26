@@ -26,6 +26,8 @@ async function fetchGeoJSON(url: string): Promise<GeoJSON.FeatureCollection> {
   }
 }
 
+let floodAlertTimer: ReturnType<typeof setInterval> | undefined
+
 export function useMap(containerRef: React.RefObject<HTMLDivElement | null>) {
   const [ready, setReady] = useState(false)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -179,6 +181,11 @@ async function loadPostStyleData(map: maplibregl.Map) {
     ['volcanoes', '/api/volcanoes'],
     // tsunami feed may be temporarily unavailable -> honest empty layer
     ['tsunamis', '/api/tsunamis'],
+    // flood monitoring: stations GeoJSON (real rainfall + honest
+    // offline gauges) and active alert markers
+    ['flood-rain-stations', '/api/flood/stations?kind=rainfall'],
+    ['flood-water-stations', '/api/flood/stations?kind=water_level'],
+    // alerts layer is refreshed on its own cadence below
   ]
   for (const [sourceId, url] of loads) {
     const data = await fetchGeoJSON(url)
@@ -196,4 +203,44 @@ async function loadPostStyleData(map: maplibregl.Map) {
       unavailable: !fcst || fcst.source === 'unavailable',
     })
   } catch { /* honest empty overlay */ }
+
+  // Flood alert markers: refreshed on their own cadence so escalations
+  // appear on the map without a reload (stations load once above).
+  const refreshFloodAlerts = async () => {
+    try {
+      const res = await fetch('/api/flood/status')
+      if (!res.ok) return
+      const body = await res.json()
+      const alerts = body.active_alerts ?? []
+      const alertSrc = map.getSource('flood-alerts') as maplibregl.GeoJSONSource | undefined
+      if (!alertSrc) return
+      const stations = new Map<string, { lat: number; lon: number; name: string }>()
+      for (const s of body.stations ?? []) {
+        stations.set(s.id, s)
+      }
+      // Marker positions come from the stations endpoint payload cached
+      // in the alert list's station_id -> look up via /stations fetch.
+      const stRes = await fetch('/api/flood/stations')
+      if (!stRes.ok) return
+      const stBody = await stRes.json()
+      const coords: Record<string, [number, number]> = {}
+      for (const f of stBody.features ?? []) {
+        coords[f.id] = f.geometry.coordinates
+      }
+      alertSrc.setData({
+        type: 'FeatureCollection',
+        features: alerts
+          .filter((a: { station_id: string }) => coords[a.station_id])
+          .map((a: { id: string; station_id: string; level: string }) => ({
+            type: 'Feature',
+            id: a.id,
+            properties: { uid: a.id, level: a.level },
+            geometry: { type: 'Point', coordinates: coords[a.station_id] },
+          })),
+      })
+      void stations
+    } catch { /* backend down: markers stay as-is */ }
+  }
+  refreshFloodAlerts()
+  floodAlertTimer = setInterval(refreshFloodAlerts, 300_000)
 }

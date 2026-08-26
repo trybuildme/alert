@@ -114,6 +114,33 @@ const INITIAL_LAYERS: LayerInfo[] = [
     descriptionFil: 'SIMULADONG tantong ulan — wala pang live na gauge feed',
     visible: false, opacity: 0.75,
     legend: [{ label: '< 5 mm', color: '#bae6fd' }, { label: '5–15 mm', color: '#38bdf8' }, { label: '> 15 mm', color: '#1d4ed8' }] },
+  {
+    id: 'flood-rain-stations', name: 'Rain Stations · Live', nameFil: 'Mga Rain Gauge · Live',
+    description: 'REAL rainfall (mm/h) at PAGASA station locations via Open-Meteo — click a marker for details',
+    descriptionFil: 'Tunay na ulan sa mga lokasyon ng PAGASA via Open-Meteo',
+    visible: true, opacity: 1,
+    legend: [
+      { label: '< 2.5 mm/h', color: '#38bdf8' },
+      { label: 'ADVISORY 2.5+', color: '#facc15' },
+      { label: 'WATCH 7.5+', color: '#fb923c' },
+      { label: 'WARNING 15+', color: '#ef4444' },
+      { label: 'CRITICAL 30+', color: '#a855f7' },
+    ],
+  },
+  {
+    id: 'flood-water-stations', name: 'Water-Level Gauges', nameFil: 'Mga Water-Level Gauge',
+    description: 'River gauge locations — OFFLINE awaiting an authorized PAGASA/DENR feed (no fabricated readings)',
+    descriptionFil: 'Mga river gauge — offline hanggang may awtorisadong feed',
+    visible: false, opacity: 1,
+    legend: [{ label: 'Gauge (offline)', color: '#64748b' }],
+  },
+  {
+    id: 'flood-alerts-layer', name: 'Flood Alerts · Live', nameFil: 'Mga Babala sa Baha · Live',
+    description: 'Stations currently at ADVISORY or above per NOAH\'s observed-rainfall classification — not official PAGASA warnings',
+    descriptionFil: 'Mga istasyon na ADVISORY pataas ayon sa obserbasyong ulan — hindi opisyal na babala ng PAGASA',
+    visible: false, opacity: 1,
+    legend: [{ label: 'Active flood alert', color: '#ef4444' }],
+  },
   { id: 'alerts', name: 'Alerts', nameFil: 'Mga Alerto',
     description: 'No live warning feed wired yet — layer stays empty until an official PAGASA source exists (no fabricated alerts)',
     descriptionFil: 'Wala pang live na warning feed — walang gawa-gawang alerto',
@@ -494,6 +521,7 @@ interface UIState {
   eqMinMag: number
   eqSelectedUid: string | null
   volcanoUid: string | null
+  floodStationId: string | null
   setBasemap: (b: string) => void
   setMode2D: (v: boolean) => void
   toggleLayerPanel: () => void
@@ -505,6 +533,7 @@ interface UIState {
   setEqMinMag: (v: number) => void
   setEqSelectedUid: (uid: string | null) => void
   setVolcanoUid: (uid: string | null) => void
+  setFloodStationId: (id: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -527,8 +556,10 @@ export const useUIStore = create<UIState>((set) => ({
   eqMinMag: 2.5,
   eqSelectedUid: null,
   volcanoUid: null,
+  floodStationId: null,
   toggleEqPanel: () => set((s) => ({ eqPanelOpen: !s.eqPanelOpen })),
   setEqMinMag: (eqMinMag) => set({ eqMinMag }),
   setEqSelectedUid: (eqSelectedUid) => set({ eqSelectedUid }),
   setVolcanoUid: (volcanoUid) => set({ volcanoUid }),
+  setFloodStationId: (floodStationId) => set({ floodStationId }),
 }))

@@ -42,6 +42,18 @@ export function attachInteractions(map: maplibregl.Map): void {
       return
     }
 
+    const floodHits = map.queryRenderedFeatures(e.point, {
+      layers: ['flood-rain-circle', 'flood-water-circle', 'flood-alert-marker'],
+    })
+    if (floodHits.length > 0) {
+      const uid = floodHits[0].properties?.uid as string | undefined
+      if (uid) {
+        useUIStore.getState().setFloodStationId(uid)
+        map.flyTo({ center: e.lngLat, zoom: Math.max(map.getZoom(), 10), speed: 1.2, essential: true })
+      }
+      return
+    }
+
     const farmHits = map.queryRenderedFeatures(e.point, { layers: ['farms-fill'] })
     if (farmHits.length > 0) {
       const f = farmHits[0]

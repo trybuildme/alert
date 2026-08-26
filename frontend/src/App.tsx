@@ -24,6 +24,7 @@ import VolcanoPopup from './components/panels/VolcanoPopup'
 import ResolutionIndicator from './components/panels/ResolutionIndicator'
 import MapTimestamp from './components/panels/MapTimestamp'
 import ProfilePopup from './components/panels/ProfilePopup'
+import FloodStationPopup from './components/panels/FloodStationPopup'
 import PanelErrorBoundary from './components/PanelErrorBoundary'
 
 export default function App() {

@@ -14,6 +14,7 @@ test('circle survives select and deselect clicks', async ({ page }) => {
     const m = (window as unknown as { __noah_map?: { isStyleLoaded: () => boolean } }).__noah_map
     return !!m && m.isStyleLoaded()
   }, undefined, { timeout: 45_000 })
+  page.on('pageerror', (err) => console.log('PAGEERROR:', err.message))
   await page.waitForTimeout(500)
 
   await page.locator('.tool-btn', { hasText: 'Circle' }).click()
@@ -33,9 +34,15 @@ test('circle survives select and deselect clicks', async ({ page }) => {
     selected: !!document.querySelector('.drawn-item.selected'),
   }))
 
-  // Drawn and auto-selected; geometry rendered.
+  // Drawn and auto-selected; WAIT until the polygon is actually
+  // queryable (setData -> worker -> tiles is asynchronous; under load
+  // this can take >1s, and clicking too early would deselect).
+  await expect.poll(async () => (await snap()).fillFeatures,
+    { timeout: 15_000 }).toBeGreaterThan(0)
   const afterDraw = await snap()
+  console.log('AFTERDRAW:', JSON.stringify(afterDraw))
   expect(afterDraw.drawnCount).toBe(1)
+  expect(afterDraw.selected).toBe(true)
 
   // Click INSIDE the circle: stays selected, geometry stays.
   await page.mouse.click(cx + 60, cy)
