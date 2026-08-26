@@ -25,6 +25,15 @@ _UIDS = {name.lower().replace(" ", "-"): i for i, (name, *_rest)
          in enumerate(VOLCANOES)}
 
 
+def _lookup_index(uid: str) -> int | None:
+    """Accept both the bare slug ('kanlaon') and the full feature uid
+    ('phivolcs-site:kanlaon') — the frontend always sends the latter."""
+    key = uid.strip().lower()
+    if ":" in key:
+        key = key.rsplit(":", 1)[-1]
+    return _UIDS.get(key)
+
+
 @router.get("")
 async def volcanoes() -> JSONResponse:
     return JSONResponse({
@@ -71,7 +80,7 @@ def _seismicity_summary(request: Request, lat: float, lon: float) -> dict:
 
 @router.get("/{uid}")
 async def volcano_detail(uid: str, request: Request) -> JSONResponse:
-    idx = _UIDS.get(uid)
+    idx = _lookup_index(uid)
     if idx is None:
         raise HTTPException(status_code=404, detail="unknown volcano site")
     feature = volcano_features()[idx]

@@ -15,6 +15,11 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3010',
     trace: 'retain-on-failure',
+    // The app registers a real service worker (PWA offline); requests
+    // re-issued from a controlled SW bypass page.route, which breaks
+    // API mocking. Block SWs in tests — offline behaviour is not what
+    // these specs exercise.
+    serviceWorkers: 'block',
   },
   webServer: {
     command: 'npm run dev',
