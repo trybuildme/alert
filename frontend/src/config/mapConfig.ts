@@ -108,7 +108,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
   },
   {
     id: 'infrared',
-    name: 'Infrared',
+    name: 'Infrared · Simulated',
     satellite: 'Himawari-9',
     color: '#ef4444',
     tiles: (time) => [backendTile('infrared', time)],
@@ -123,7 +123,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
   },
   {
     id: 'water-vapor',
-    name: 'Water Vapor',
+    name: 'Water Vapor · Simulated',
     satellite: 'Himawari-9',
     color: '#3b82f6',
     tiles: (time) => [backendTile('water-vapor', time)],
@@ -138,7 +138,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
   },
   {
     id: 'cloud-temp',
-    name: 'Cloud Temperature',
+    name: 'Cloud Temp · Simulated',
     satellite: 'Himawari-9',
     color: '#8b5cf6',
     tiles: (time) => [backendTile('cloud-temp', time)],

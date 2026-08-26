@@ -143,6 +143,10 @@ async def inspect(
                             "NOAH tile service (synthetic Himawari-class feed)"),
         },
         "agriculture": {
+            "data_quality": "synthetic",
+            "note": ("Placeholder values from a deterministic noise model "
+                     "— no live satellite/gauge source is wired yet. Not "
+                     "operational."),
             "ndvi_estimate": ndvi,
             "ndvi_30d_trend": ndvi_trend,
             "soil_moisture_index": soil_moisture,
@@ -150,6 +154,10 @@ async def inspect(
                                "moderate vegetation stress" if ndvi > 0.45 else "low vegetation activity"),
         },
         "weather": {
+            "data_quality": "synthetic",
+            "note": ("Simulated readings — no live station/gauge feed is "
+                     "wired yet. Station name/location is real; values "
+                     "are not."),
             "rainfall_3h_mm": rainfall_3h_mm,
             "temperature_c": temperature_c,
             "humidity_pct": humidity_pct,
@@ -167,8 +175,13 @@ async def inspect(
 
 @router.get("/farms")
 async def farms():
+    """Demo registry: hand-placed illustrative farm polygons, not a live
+    cadastral/agricultural feed."""
     return {
         "type": "FeatureCollection",
+        "source": "demo-registry",
+        "disclaimer": ("Illustrative demo farms — no live agricultural "
+                       "census or cadastral feed is wired yet."),
         "features": [
             {"type": "Feature",
              "properties": {"name": f["name"], "crop": f["crop"], "area_hectares": f["area_hectares"],
@@ -181,11 +194,19 @@ async def farms():
 
 @router.get("/weather-stations")
 async def weather_stations():
+    """Station names/locations are real PAGASA synoptic sites; the
+    readings next to them are simulated placeholders."""
     return {
         "type": "FeatureCollection",
+        "source": "static-station-list-simulated-readings",
+        "disclaimer": ("Real station locations; temperature/rainfall "
+                       "values are SIMULATED placeholders (no live "
+                       "observation feed yet)."),
         "features": [
             {"type": "Feature",
-             "properties": {"name": s["name"], "temperature_c": round(24 + 8 * _pseudo(s["lat"], s["lon"], 5), 1),
+             "properties": {"name": s["name"],
+                            "simulated": True,
+                            "temperature_c": round(24 + 8 * _pseudo(s["lat"], s["lon"], 5), 1),
                             "rainfall_3h_mm": round(24 * _pseudo(s["lat"], s["lon"], 4), 1)},
              "geometry": {"type": "Point", "coordinates": [s["lon"], s["lat"]]}}
             for s in WEATHER_STATIONS
@@ -204,6 +225,7 @@ async def flood_zones():
         features.append({
             "type": "Feature",
             "properties": {"risk_level": z["risk_level"], "name": z["name"],
+                           "simulated": True,
                            "description": z["description"],
                            "granularity": z.get("granularity", "regional"),
                            **({"municipality": z["municipality"], "province": z["province"]}
@@ -212,32 +234,41 @@ async def flood_zones():
                 [w, s], [e, s], [e, n], [w, n], [w, s],
             ]]},
         })
-    return {"type": "FeatureCollection", "features": features}
+    return {"type": "FeatureCollection", "features": features,
+            "source": "demo-risk-model",
+            "disclaimer": ("Illustrative flood-risk model — NOT an "
+                           "operational hazard map. Official flood "
+                           "advisories via PAGASA / MGB.")}
 
 
 @router.get("/rainfall")
 async def rainfall():
     return {
         "type": "FeatureCollection",
+        "source": "simulated-estimates",
+        "disclaimer": ("Simulated rainfall values at real station "
+                       "locations — no live gauge feed yet."),
         "features": [
             {"type": "Feature",
-             "properties": {"mm": round(30 * _pseudo(s["lat"], s["lon"], 4), 1), "station": s["name"]},
+             "properties": {"mm": round(30 * _pseudo(s["lat"], s["lon"], 4), 1),
+                            "station": s["name"], "simulated": True},
              "geometry": {"type": "Point", "coordinates": [s["lon"], s["lat"]]}}
             for s in WEATHER_STATIONS
         ],
     }
 
 
-ALERT_ZONE = {
-    "type": "Feature",
-    "properties": {"alert": "Typhoon watch - enhanced SW monsoon", "severity": "moderate",
-                   "issued": "2026-08-21T00:00:00Z"},
-    "geometry": {"type": "Polygon", "coordinates": [[
-        [118.5, 16.0], [121.5, 15.6], [122.6, 18.2], [119.9, 19.2], [118.2, 17.8], [118.5, 16.0],
-    ]]},
-}
-
-
 @router.get("/alerts")
 async def alerts():
-    return {"type": "FeatureCollection", "features": [ALERT_ZONE]}
+    """NO live weather-warning source is wired yet (PAGASA publishes no
+    open machine-readable feed). An honest empty collection is served —
+    a fabricated alert zone used to live here and was removed: showing
+    invented hazard warnings on a hazard platform is dangerous."""
+    return {
+        "type": "FeatureCollection",
+        "features": [],
+        "source": "no-live-source",
+        "disclaimer": ("No operational weather-warning feed is connected "
+                       "yet. Absence of features means NO DATA, not "
+                       "'all clear'. Official warnings via PAGASA."),
+    }
