@@ -110,20 +110,36 @@ export function useLayerVisibility(map: maplibregl.Map | null) {
       }
     }
 
-    // Style may not be loaded on first mount — defer to load instead of
-    // silently dropping the apply (restored session state must land even
-    // if readiness races style construction).
+    // Style may not be loaded when this effect first runs. We can't
+    // defer via map.once('load'): the hook receives its map only AFTER
+    // App's ready flag flips (which happens in a 'load' handler), so
+    // that event has already fired and would strand every layer at
+    // buildStyle's default visibility ('none'). Poll for style
+    // readiness instead; each store change also retries immediately.
+    let retry: ReturnType<typeof setInterval> | undefined
+    let stop: ReturnType<typeof setTimeout> | undefined
     if (!map.isStyleLoaded()) {
-      map.once('load', apply)
-      return
+      retry = setInterval(() => {
+        if (map.isStyleLoaded()) {
+          clearInterval(retry)
+          clearTimeout(stop)
+          apply()
+        }
+      }, 200)
+      stop = setTimeout(() => clearInterval(retry), 30_000)
+    } else {
+      apply()
     }
-    apply()
 
     Object.keys(LAYER_BASEMAP_MAP).forEach((id) => {
       if (map.getLayer(`basemap-${id}`)) {
         map.setLayoutProperty(`basemap-${id}`, 'visibility', id === basemap ? 'visible' : 'none')
       }
     })
+    return () => {
+      if (retry) clearInterval(retry)
+      if (stop) clearTimeout(stop)
+    }
   }, [layers, basemap, map])
 }
 
