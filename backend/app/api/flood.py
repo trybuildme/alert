@@ -60,6 +60,10 @@ def _station_feature(station: dict, latest_by_station: dict,
                                  "%Y-%m-%dT%H:%M:%SZ").replace(
                                      tzinfo=timezone.utc)).total_seconds()
             / 60))
+        # Flat convenience fields for the map's data-driven styling.
+        if latest["metric"] == "rainfall_mm_h":
+            props["mmh"] = latest["value"]
+            props["mmhLabel"] = f"{latest['value']:g}"
     return {
         "type": "Feature",
         "id": sid,

@@ -19,6 +19,11 @@ import { useNotifStore, type NotifItem } from '../stores/notifications'
 const CYCLONE_POLL_MS = 5 * 60_000
 const TSUNAMI_POLL_MS = 2 * 60_000   // matches backend feed cache TTL window
 const VOLCANO_POLL_MS = 5 * 60_000
+const FLOOD_POLL_MS = 3 * 60_000
+
+const FLOOD_LEVEL_WEIGHT: Record<string, number> = {
+  NORMAL: 0, ADVISORY: 1, WATCH: 2, WARNING: 3, CRITICAL: 4,
+}
 
 const VOLCANO_LEVEL_WEIGHT: Record<string, number> = {
   monitored: 1,
@@ -193,6 +198,38 @@ export function useNotificationFeeds() {
     pollVolcanoes()
     const volTimer = setInterval(pollVolcanoes, VOLCANO_POLL_MS)
 
+    // ---- Flood: alert escalation detection ----
+    let knownFloodAlerts: Map<string, number> | null = null
+    const pollFloodAlerts = async () => {
+      try {
+        const res = await fetch('/api/flood/alerts?limit=50')
+        if (!res.ok) return
+        const body = await res.json()
+        const alerts = body.alerts ?? []
+        const next = new Map<string, number>()
+        for (const a of alerts) {
+          if (a.resolved_at) continue
+          next.set(a.id, FLOOD_LEVEL_WEIGHT[a.level] ?? 0)
+          const prevWeight = knownFloodAlerts?.get(a.id)
+          const weight = FLOOD_LEVEL_WEIGHT[a.level] ?? 0
+          if (knownFloodAlerts !== null &&
+              (prevWeight === undefined || weight > prevWeight)) {
+            add({
+              id: `flood-alert:${a.id}:${a.level}`,
+              kind: 'flood',
+              severity: a.level,
+              title: `Flood ${a.level} · ${a.station_id.replace(/^rain-|^wl-/, '')}`,
+              detail: a.reason || a.recommended_action,
+              at: a.created_at,
+            })
+          }
+        }
+        knownFloodAlerts = next
+      } catch { /* backend unavailable */ }
+    }
+    pollFloodAlerts()
+    const floodTimer = setInterval(pollFloodAlerts, FLOOD_POLL_MS)
+
     // ---- Expiry sweep: notifications last 24 h, then vanish ----
     const pruneTimer = setInterval(
       () => useNotifStore.getState().pruneExpired(), 60_000)
@@ -205,6 +242,7 @@ export function useNotificationFeeds() {
       clearInterval(cycTimer)
       clearInterval(tsuTimer)
       clearInterval(volTimer)
+      clearInterval(floodTimer)
       clearInterval(pruneTimer)
     }
   }, [])
