@@ -53,6 +53,7 @@ export default function App() {
         </Suspense>
         <PanelErrorBoundary label="Volcano popup"><VolcanoPopup /></PanelErrorBoundary>
         <PanelErrorBoundary label="Elevation profile"><ProfilePopup /></PanelErrorBoundary>
+        <PanelErrorBoundary label="Flood station"><FloodStationPopup /></PanelErrorBoundary>
         <ResolutionIndicator />
         <MapTimestamp />
         <MapControls />
