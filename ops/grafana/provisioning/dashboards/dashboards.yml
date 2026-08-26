@@ -1,0 +1,13 @@
+# Load every dashboard JSON in ../dashboards/ from the mounted volume.
+apiVersion: 1
+
+providers:
+  - name: noah
+    orgId: 1
+    folder: NOAH
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

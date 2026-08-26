@@ -15,6 +15,9 @@ services:
       - NOAH_TRUSTED_PROXIES=${NOAH_TRUSTED_PROXIES:-}
       - NOAH_VAPID_PUBLIC_KEY=${NOAH_VAPID_PUBLIC_KEY:-}
       - NOAH_VAPID_PRIVATE_KEY=${NOAH_VAPID_PRIVATE_KEY:-}
+      # Set to a postgres DSN to switch the hazard store from SQLite
+      # WAL to PostgreSQL/PostGIS (profile "postgis" provisions one).
+      - NOAH_DATABASE_URL=${NOAH_DATABASE_URL:-}
     volumes:
       - tilecache:/data/tilecache
       - eqdata:/app/data
@@ -62,7 +65,67 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # ---- Observability (opt-in): docker compose --profile observability up
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: noah-prometheus
+    profiles: ["observability"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: noah-grafana
+    profiles: ["observability"]
+    ports:
+      - "3300:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-noah-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ---- PostGIS backend (opt-in): docker compose --profile postgis up
+  # Then set NOAH_DATABASE_URL=postgresql://noah:noah@postgis:5432/noah
+  # and run backend/scripts/migrate_sqlite_to_pg.py once.
+  postgis:
+    image: postgis/postgis:16-3.5
+    container_name: noah-postgis
+    profiles: ["postgis"]
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=noah
+      - POSTGRES_USER=noah
+      - POSTGRES_PASSWORD=noah
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noah -d noah"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   tilecache:
   redisdata:
   eqdata:
+  promdata:
+  grafanadata:
+  pgdata:
