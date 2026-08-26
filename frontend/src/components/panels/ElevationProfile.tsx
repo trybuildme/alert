@@ -138,6 +138,14 @@ export default function ElevationProfile({
         const res = await fetch(`/api/elevation/profile?coords=${encodeURIComponent(q)}`)
         if (!res.ok) throw new Error(String(res.status))
         const body: ProfileData = await res.json()
+        // Validate shape: a malformed response (proxy hiccup, stale
+        // backend, intercepted mock) must degrade to the error note —
+        // rendering undefined elevations crashed the whole app once.
+        if (!body || !Array.isArray(body.elevations_m) ||
+            body.elevations_m.length < 2 ||
+            body.elevations_m.some((e) => typeof e !== 'number')) {
+          throw new Error('malformed elevation payload')
+        }
         if (!cancelled) setData(body)
       } catch {
         if (!cancelled) setError(true)

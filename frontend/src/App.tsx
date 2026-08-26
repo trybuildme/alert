@@ -24,6 +24,7 @@ import VolcanoPopup from './components/panels/VolcanoPopup'
 import ResolutionIndicator from './components/panels/ResolutionIndicator'
 import MapTimestamp from './components/panels/MapTimestamp'
 import ProfilePopup from './components/panels/ProfilePopup'
+import PanelErrorBoundary from './components/PanelErrorBoundary'
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -42,15 +43,15 @@ export default function App() {
       <TopBar />
       <div className="map-wrap">
         <div ref={containerRef} className="map-container" />
-        <LayerPanel />
+        <PanelErrorBoundary label="Layer panel"><LayerPanel /></PanelErrorBoundary>
         <Suspense fallback={null}>
-          <CycloneForecastPanel />
-          <EarthquakePanel />
-          <InspectPanel />
-          <MeasurementPanel />
+          <PanelErrorBoundary label="Cyclone forecast"><CycloneForecastPanel /></PanelErrorBoundary>
+          <PanelErrorBoundary label="Earthquake monitor"><EarthquakePanel /></PanelErrorBoundary>
+          <PanelErrorBoundary label="Location inspector"><InspectPanel /></PanelErrorBoundary>
+          <PanelErrorBoundary label="Draw & measure"><MeasurementPanel /></PanelErrorBoundary>
         </Suspense>
-        <VolcanoPopup />
-        <ProfilePopup />
+        <PanelErrorBoundary label="Volcano popup"><VolcanoPopup /></PanelErrorBoundary>
+        <PanelErrorBoundary label="Elevation profile"><ProfilePopup /></PanelErrorBoundary>
         <ResolutionIndicator />
         <MapTimestamp />
         <MapControls />
