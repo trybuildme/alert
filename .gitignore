@@ -9,3 +9,5 @@ dist/
 .pytest_cache/
 .DS_Store
 backend/data/
+frontend/test-results/
+frontend/playwright-report/
