@@ -93,6 +93,13 @@ class PgHazardStore:
         self._dsn = dsn
         self._lock = threading.RLock()
         self._conn = psycopg.connect(dsn, row_factory=psycopg.rows.dict_row)
+        # Autocommit is essential: psycopg3 opens an implicit transaction
+        # for any bare execute() and leaves it open. With the default
+        # autocommit=False, our later `with conn.transaction()` write
+        # blocks degenerate into SAVEPOINTs inside that never-ending
+        # implicit transaction — nothing would ever COMMIT and other
+        # sessions (and /metrics, replicas) see zero rows.
+        self._conn.autocommit = True
         with self._lock, self._conn.transaction():
             self._conn.execute(_PG_SCHEMA)
         self.has_postgis = self._detect_postgis()
@@ -349,12 +356,12 @@ class PgHazardStore:
             strongest = self._conn.execute(
                 "SELECT provider, provider_event_id, magnitude, place,"
                 " origin_time FROM earthquake_events WHERE origin_time >= %s"
-                " ORDER BY magnitude DESC LIMIT 1",
+                " ORDER BY magnitude DESC NULLS LAST LIMIT 1",
                 (_iso(now - timedelta(days=1)),)).fetchone()
             deepest = self._conn.execute(
                 "SELECT depth_km, place, magnitude, origin_time FROM"
                 " earthquake_events WHERE origin_time >= %s AND depth_km IS NOT NULL"
-                " ORDER BY depth_km DESC LIMIT 1",
+                " ORDER BY depth_km DESC NULLS LAST LIMIT 1",
                 (_iso(now - timedelta(days=1)),)).fetchone()
 
         out["strongest_24h"] = dict(strongest) if strongest else None
