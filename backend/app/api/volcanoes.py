@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.data.volcanoes import ACTIVE_AS_OF, VOLCANOES, volcano_features
+from app.hazards.volcano_assessment import build_assessment
 
 router = APIRouter(prefix="/api/volcanoes")
 
@@ -85,9 +86,11 @@ async def volcano_detail(uid: str, request: Request) -> JSONResponse:
         raise HTTPException(status_code=404, detail="unknown volcano site")
     feature = volcano_features()[idx]
     lon, lat = feature["geometry"]["coordinates"]
+    seismicity = _seismicity_summary(request, lat, lon)
     return JSONResponse({
         **feature,
         "active_status_as_of": ACTIVE_AS_OF,
         "disclaimer": _DISCLAIMER,
-        "seismicity": _seismicity_summary(request, lat, lon),
+        "seismicity": seismicity,
+        "assessment": build_assessment(feature["properties"], seismicity),
     })

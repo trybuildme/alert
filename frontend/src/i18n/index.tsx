@@ -63,6 +63,10 @@ export const DICT: Record<string, Entry> = {
   'replay.loading': { en: 'loading…', fil: 'naglo-load…' },
   'replay.events': { en: 'events', fil: 'kaganapan' },
 
+  // Volcano assessment
+  'volcano.assessment': { en: 'Assessment', fil: 'Pagtataya' },
+  'volcano.basis': { en: 'Basis', fil: 'Batayan' },
+
   // App boot
   'app.booting': { en: 'Initializing NOAH …', fil: 'Binubuksan ang NOAH …' },
 }

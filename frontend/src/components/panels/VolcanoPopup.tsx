@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import { useUIStore } from '../../stores'
+import { useI18n } from '../../i18n'
 
 interface VolcanoDetail {
   properties: {
@@ -32,6 +33,24 @@ interface VolcanoDetail {
       depth_km: number | null
     } | null
   }
+  assessment?: {
+    level: 'active-curated' | 'unrest-evidence' | 'monitored'
+    label: string
+    color: string
+    signals: string[]
+    context?: {
+      years_since_last_eruption?: number | null
+      phivolcs_curated_flag?: { active_now: boolean }
+      seismicity?: {
+        count_7d?: number
+        max_magnitude_7d?: number | null
+        radius_km?: number
+        window_days?: number
+      } | null
+    } | null
+    methodology: string
+    disclaimer: string
+  }
 }
 
 const THUMB_ZOOM = 13          // ~4.9 km across a 2x2 tile mosaic
@@ -53,6 +72,7 @@ export default function VolcanoPopup() {
   void map
   const [detail, setDetail] = useState<VolcanoDetail | null>(null)
   const [error, setError] = useState(false)
+  const { t } = useI18n()
 
   useEffect(() => {
     if (!volcanoUid) {
@@ -139,6 +159,36 @@ export default function VolcanoPopup() {
               <div className="fc-note">Earthquake module offline — no seismic context.</div>
             )}
           </div>
+
+          {detail.assessment && (
+            <div className="inspect-section">
+              <div className="section-title">{t('volcano.assessment')}</div>
+              <span
+                className={`eq-badge vc-assess-${detail.assessment.level}`}
+                style={{ borderColor: detail.assessment.color, color: detail.assessment.color }}
+                title={detail.assessment.methodology}
+              >
+                ● {detail.assessment.label}
+              </span>
+              <div className="vc-basis">
+                <div className="section-title" style={{ marginTop: 6 }}>{t('volcano.basis')}</div>
+                <ul className="vc-signals">
+                  {detail.assessment.signals.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                  {detail.assessment.context?.years_since_last_eruption != null && (
+                    <li>
+                      last known eruption {detail.properties.last_known_eruption}
+                      {' '}({detail.assessment.context.years_since_last_eruption} y ago)
+                    </li>
+                  )}
+                </ul>
+              </div>
+              <p className="fc-note" style={{ margin: '4px 0 0' }}>
+                {detail.assessment.disclaimer}
+              </p>
+            </div>
+          )}
 
           <p className="fc-note vc-disclaimer">
             Status snapshot as of {detail.active_status_as_of ?? 'n/a'} — not a live
