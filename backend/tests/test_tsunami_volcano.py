@@ -89,6 +89,62 @@ def test_tsunamis_endpoint_serves_cached_features(client, monkeypatch):
     assert len(body["features"]) == 1
 
 
+# ---- upstream backoff ----------------------------------------------------------
+
+def test_fetch_bulletins_backs_off_after_failures(monkeypatch):
+    """A flapping feed must not be re-hit on every poll: failures
+    schedule exponential backoff, success resets it."""
+    import httpx
+
+    tsunamis_mod._cache.update(ts=0.0, features=None)
+    tsunamis_mod._backoff.update(failures=0, next_try=0.0)
+
+    calls = {"n": 0}
+
+    class _Resp:
+        def raise_for_status(self):
+            raise httpx.HTTPStatusError("503", request=None, response=None)
+
+    async def bad_get(url):
+        calls["n"] += 1
+        return _Resp()
+
+    class _Client:
+        get = staticmethod(bad_get)
+
+    monkeypatch.setattr(tsunamis_mod, "_client", _Client())
+    assert tsunamis_mod.fetch_bulletins() is None or True  # async below
+    import asyncio
+    assert asyncio.run(tsunamis_mod.fetch_bulletins()) is None
+    assert calls["n"] == 1
+    assert tsunamis_mod._backoff["failures"] == 1
+    # Inside the backoff window: no new upstream attempt.
+    assert asyncio.run(tsunamis_mod.fetch_bulletins()) is None
+    assert calls["n"] == 1
+
+
+def test_fetch_bulletins_backoff_resets_on_success(monkeypatch):
+    tsunamis_mod._cache.update(ts=0.0, features=None)
+    tsunamis_mod._backoff.update(failures=3, next_try=0.0)  # window expired
+
+    import asyncio
+
+    class _Resp:
+        text = "<feed/>"
+
+        def raise_for_status(self):
+            pass
+
+    class _Client:
+        @staticmethod
+        async def get(url):
+            return _Resp()
+
+    monkeypatch.setattr(tsunamis_mod, "_client", _Client())
+    assert asyncio.run(tsunamis_mod.fetch_bulletins()) == []
+    assert tsunamis_mod._backoff["failures"] == 0
+
+
 # ---- volcanoes -----------------------------------------------------------------
 
 def test_volcanoes_registry(client):

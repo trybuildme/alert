@@ -34,6 +34,11 @@ router = APIRouter(prefix="/api/tsunamis")
 
 _client = httpx.AsyncClient(timeout=15)
 _cache: dict = {"ts": 0.0, "features": None}
+# Exponential backoff when upstream fails: without negative caching,
+# every dashboard poll would re-hit a flapping feed at full rate
+# (tsunami.gov has been observed to 503 transiently through proxies).
+_backoff: dict = {"failures": 0, "next_try": 0.0}
+MAX_BACKOFF_S = 900
 
 NS = {
     "atom": "http://www.w3.org/2005/Atom",
@@ -103,14 +108,23 @@ async def fetch_bulletins() -> list[dict] | None:
     if (_cache["features"] is not None
             and now - _cache["ts"] < CACHE_TTL_S):
         return _cache["features"]
+    if now < _backoff["next_try"]:
+        return None   # still backing off from recent failures
     try:
         response = await _client.get(FEED_URL)
         response.raise_for_status()
         features = parse_atom_feed(response.text)
         _cache.update(ts=time.monotonic(), features=features)
+        _backoff["failures"] = 0
         return features
     except Exception as exc:  # noqa: BLE001 — degrade honestly
-        logger.warning("tsunami feed unavailable: %s", exc)
+        failures = _backoff["failures"] + 1
+        delay = min(CACHE_TTL_S * 2 ** min(failures - 1, 5), MAX_BACKOFF_S)
+        _backoff.update(failures=failures, next_try=time.monotonic() + delay)
+        # exc may carry an empty message through some proxy stacks —
+        # always log the exception class alongside it.
+        logger.warning("tsunami feed unavailable (attempt %d, backing off %ds): %s: %s",
+                       failures, delay, type(exc).__name__, exc or "(no message)")
         return None
 
 

@@ -1,0 +1,92 @@
+# Provisioned alert rules for NOAH (Grafana unified alerting).
+# Rules land in the UI with no notification channel attached by default —
+# wire contact points / policies in the UI (or add a contactPoints.yml)
+# to route them. Expressions target the auto-provisioned 'prometheus'
+# datasource (uid: prometheus).
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: noah-feed-health
+    folder: NOAH
+    interval: 1m
+    rules:
+      - uid: noah-provider-stale
+        title: Hazard feed stale (>1h since last success)
+        condition: C
+        for: 10m
+        annotations:
+          summary: >-
+            Provider {{ $labels.provider }} has not completed a successful
+            poll for over an hour. Ingest may be down or upstream blocked.
+        labels:
+          severity: warning
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: time() - noah_provider_last_success_timestamp
+          - refId: B
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: vector(3600)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A > B
+
+      - uid: noah-backend-down
+        title: NOAH backend scrape failing
+        condition: C
+        for: 5m
+        annotations:
+          summary: Prometheus cannot scrape the NOAH backend /metrics endpoint.
+        labels:
+          severity: critical
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: up{job="noah-backend"}
+          - refId: B
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: vector(1)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A < B
+
+      - uid: noah-cache-hitrate-low
+        title: Tile cache hit rate low (<30% over 30m)
+        condition: C
+        for: 30m
+        annotations:
+          summary: >-
+            Map-tile cache hit rate collapsed — clients are hammering the
+            upstream imagery provider or the cache was evicted.
+        labels:
+          severity: info
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: sum(rate(noah_cache_hits_total[10m])) / clamp_min(sum(rate(noah_cache_hits_total[10m])) + sum(rate(noah_cache_misses_total[10m])), 1e-9)
+          - refId: B
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: vector(0.3)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A < B
