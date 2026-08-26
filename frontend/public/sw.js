@@ -4,8 +4,11 @@
 // Offline strategy:
 //   * App shell ('/', '/index.html'): network-first with cache fallback
 //     — fresh deploy wins when online, cached shell renders offline.
-//   * Hashed build assets (/assets/*): stale-while-revalidate. Filenames
-//     are content-hashed so a cached hit is always correct.
+//   * Hashed build assets (/assets/*): network-first with cache
+//     fallback. Filenames are content-hashed (immutable), so the cache
+//     is purely an offline safety net — going network-first guarantees
+//     users never run yesterday's JS after a deploy. (SWR used to serve
+//     one stale page per deploy, which repeatedly looked like bugs.)
 //   * Map tiles (/tiles/*): cache-first (immutable imagery), capped via
 //     simple LRU trim so the Cache API doesn't grow without bound.
 //   * GET /api/* reads: network-first with cache fallback — last known
@@ -85,16 +88,6 @@ async function cacheFirst(request, cacheName, max) {
   }
 }
 
-async function staleWhileRevalidate(request, cacheName) {
-  const cache = await caches.open(cacheName)
-  const hit = await cache.match(request)
-  const refresh = fetch(request).then((resp) => {
-    if (resp.ok) cache.put(request, resp.clone())
-    return resp
-  }).catch(() => null)
-  return hit ?? (await refresh) ?? new Response('', { status: 504 })
-}
-
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return
@@ -104,7 +97,7 @@ self.addEventListener('fetch', (event) => {
     return
   }
   if (url.pathname.startsWith('/assets/')) {
-    event.respondWith(staleWhileRevalidate(event.request, ASSET_CACHE))
+    event.respondWith(networkFirst(event.request, ASSET_CACHE))
     return
   }
   if (url.pathname.startsWith('/tiles/')) {
