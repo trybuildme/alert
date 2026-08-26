@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import maplibregl from 'maplibre-gl'
-import { useDrawingStore, polygonAreaKm2, pathLengthKm } from '../stores'
+import { useDrawingStore, polygonAreaKm2, pathLengthKm, previewPath } from '../stores'
 import type { DrawnFeature } from '../stores'
 
 function featureToGeoJSON(features: DrawnFeature[]): GeoJSON.FeatureCollection {
@@ -19,7 +19,7 @@ function featureToGeoJSON(features: DrawnFeature[]): GeoJSON.FeatureCollection {
 }
 
 export function useDrawing(map: maplibregl.Map | null) {
-  const { features, sketchCoords, activeTool, selectedId } = useDrawingStore()
+  const { features, sketchCoords, activeTool, selectedId, cursorCoords } = useDrawingStore()
 
   useEffect(() => {
     if (!map || !map.isStyleLoaded()) return
@@ -72,6 +72,45 @@ export function useDrawing(map: maplibregl.Map | null) {
       })
     }
   }, [features, sketchCoords, activeTool, selectedId, map])
+
+  // Rubber-band preview for two-click tools (rectangle/circle): the
+  // anchor is placed on first click; until the second click lands,
+  // mirror the cursor so the user sees the shape forming. Without this
+  // there was zero feedback between the two clicks.
+  useEffect(() => {
+    if (!map) return
+    const onMove = (e: maplibregl.MapMouseEvent) => {
+      const st = useDrawingStore.getState()
+      if (st.activeTool && st.sketchCoords.length > 0 &&
+          (st.activeTool === 'rectangle' || st.activeTool === 'circle')) {
+        st.setCursorCoords([e.lngLat.lng, e.lngLat.lat])
+      } else if (st.cursorCoords) {
+        st.setCursorCoords(null)
+      }
+    }
+    map.on('mousemove', onMove)
+    return () => { map.off('mousemove', onMove) }
+  }, [map])
+
+  // Preview geometry into the sketch source (rectangle/circle only —
+  // line/polygon previews come from sketchCoords directly above).
+  useEffect(() => {
+    if (!map || !map.isStyleLoaded()) return
+    const sketchSrc = map.getSource('draw-sketch') as maplibregl.GeoJSONSource | undefined
+    if (!sketchSrc) return
+    const st = useDrawingStore.getState()
+    if (st.cursorCoords && st.sketchCoords.length === 1 &&
+        (st.activeTool === 'rectangle' || st.activeTool === 'circle')) {
+      const path = previewPath(st.activeTool, st.sketchCoords[0], st.cursorCoords)
+      sketchSrc.setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature', properties: {},
+          geometry: { type: 'LineString', coordinates: path },
+        }],
+      })
+    }
+  }, [cursorCoords, activeTool, sketchCoords, map])
 }
 
 export function measurementFor(feature: DrawnFeature | undefined): string[] {

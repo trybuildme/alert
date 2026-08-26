@@ -326,10 +326,13 @@ export interface DrawnFeature {
 interface DrawingState {
   activeTool: DrawTool
   sketchCoords: [number, number][]
+  /** Cursor position while a two-click tool is mid-sketch (preview). */
+  cursorCoords: [number, number] | null
   features: DrawnFeature[]
   selectedId: number | null
   nextId: number
   setTool: (t: DrawTool) => void
+  setCursorCoords: (c: [number, number] | null) => void
   addSketchPoint: (pt: [number, number]) => void
   finishSketch: () => void
   cancelSketch: () => void
@@ -340,10 +343,12 @@ interface DrawingState {
 export const useDrawingStore = create<DrawingState>((set) => ({
   activeTool: null,
   sketchCoords: [],
+  cursorCoords: null,
   features: [],
   selectedId: null,
   nextId: 1,
-  setTool: (tool) => set({ activeTool: tool, sketchCoords: [], selectedId: null }),
+  setTool: (tool) => set({ activeTool: tool, sketchCoords: [], selectedId: null, cursorCoords: null }),
+  setCursorCoords: (cursorCoords) => set({ cursorCoords }),
   addSketchPoint: (pt) => set((s) => ({ sketchCoords: [...s.sketchCoords, pt] })),
   finishSketch: () =>
     set((s) => {
@@ -353,13 +358,14 @@ export const useDrawingStore = create<DrawingState>((set) => ({
       return {
         features: [...s.features, feature],
         sketchCoords: [],
+        cursorCoords: null,
         activeTool: null,
         nextId: s.nextId + 1,
         selectedId: feature.id,
       }
     }),
-  cancelSketch: () => set({ sketchCoords: [], activeTool: null }),
-  clearAll: () => set({ features: [], sketchCoords: [], selectedId: null, activeTool: null }),
+  cancelSketch: () => set({ sketchCoords: [], cursorCoords: null, activeTool: null }),
+  clearAll: () => set({ features: [], sketchCoords: [], cursorCoords: null, selectedId: null, activeTool: null }),
   selectFeature: (id) => set({ selectedId: id }),
 }))
 
@@ -423,18 +429,7 @@ function buildFeature(id: number, tool: Exclude<DrawTool, null>, coords: [number
   if (tool === 'circle' && coords.length >= 2) {
     const [c, edge] = coords
     const radiusKm = haversineKm(c, edge)
-    const pts: [number, number][] = []
-    for (let i = 0; i < 64; i++) {
-      const bearing = (i / 64) * 2 * Math.PI
-      const latR = (c[1] * Math.PI) / 180
-      const lonR = (c[0] * Math.PI) / 180
-      const brg = bearing
-      const dr = radiusKm / 6371.0088
-      const lat2 = Math.asin(Math.sin(latR) * Math.cos(dr) + Math.cos(latR) * Math.sin(dr) * Math.cos(brg))
-      const lon2 = lonR + Math.atan2(Math.sin(brg) * Math.sin(dr) * Math.cos(latR), Math.cos(dr) - Math.sin(latR) * Math.sin(lat2))
-      pts.push([(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI])
-    }
-    pts.push(pts[0])
+    const pts: [number, number][] = circleRing(c, radiusKm)
     return {
       id, tool: 'circle', coordinates: pts,
       areaKm2: Math.PI * radiusKm ** 2,
@@ -444,6 +439,41 @@ function buildFeature(id: number, tool: Exclude<DrawTool, null>, coords: [number
     }
   }
   return null
+}
+
+/** Closed ring of 64 great-circle points at radiusKm around c. */
+export function circleRing(c: [number, number], radiusKm: number): [number, number][] {
+  const pts: [number, number][] = []
+  for (let i = 0; i < 64; i++) {
+    const brg = (i / 64) * 2 * Math.PI
+    const latR = (c[1] * Math.PI) / 180
+    const lonR = (c[0] * Math.PI) / 180
+    const dr = radiusKm / 6371.0088
+    const lat2 = Math.asin(Math.sin(latR) * Math.cos(dr) + Math.cos(latR) * Math.sin(dr) * Math.cos(brg))
+    const lon2 = lonR + Math.atan2(Math.sin(brg) * Math.sin(dr) * Math.cos(latR), Math.cos(dr) - Math.sin(latR) * Math.sin(lat2))
+    pts.push([(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI])
+  }
+  pts.push(pts[0])
+  return pts
+}
+
+/**
+ * Live rubber-band geometry while drawing a rectangle or circle:
+ * anchor point fixed, far edge follows the cursor. Returns a LineString
+ * coordinate array for the sketch preview layer.
+ */
+export function previewPath(
+  tool: 'rectangle' | 'circle',
+  anchor: [number, number],
+  cursor: [number, number],
+): [number, number][] {
+  if (tool === 'rectangle') {
+    return [
+      anchor, [cursor[0], anchor[1]], cursor,
+      [anchor[0], cursor[1]], anchor,
+    ]
+  }
+  return circleRing(anchor, haversineKm(anchor, cursor))
 }
 
 function centroid(coords: [number, number][]): [number, number] {
