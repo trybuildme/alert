@@ -38,10 +38,12 @@ def _usgs_feature(fid="us2000abc1", mag=5.4, lon=121.5, lat=15.2, depth=42.0,
 
 def _event(provider="usgs", pid="p1", mag=5.0, lat=15.8, lon=121.6,
            depth=30.0) -> HazardEvent:
-    from datetime import datetime, timezone
+    from datetime import datetime, timedelta, timezone
+    # Clock-relative: statistics windows are "last N hours/days", so a
+    # hardcoded date silently ages out of them (cf. cyclone fixtures).
     return HazardEvent(
         provider=provider, provider_event_id=pid,
-        origin_time=datetime(2026, 8, 24, 12, 0, tzinfo=timezone.utc),
+        origin_time=datetime.now(timezone.utc) - timedelta(minutes=30),
         latitude=lat, longitude=lon, depth_km=depth, magnitude=mag,
         magnitude_type="mb", place="near Aurora", region="Philippines",
         status="reviewed", raw_data={})
