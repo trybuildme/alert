@@ -1,4 +1,5 @@
 import { lazy, Suspense, useRef } from 'react'
+import { useI18n } from './i18n'
 import { useMap } from './hooks/useMap'
 import { useLayerVisibility } from './hooks/useLayerVisibility'
 import { useDrawing } from './hooks/useDrawing'
@@ -19,12 +20,14 @@ const InspectPanel = lazy(() => import('./components/panels/InspectPanel'))
 const CycloneForecastPanel = lazy(() => import('./components/panels/CycloneForecastPanel'))
 const EarthquakePanel = lazy(() => import('./components/panels/EarthquakePanel'))
 const MeasurementPanel = lazy(() => import('./components/panels/MeasurementPanel'))
+import VolcanoPopup from './components/panels/VolcanoPopup'
 import ResolutionIndicator from './components/panels/ResolutionIndicator'
 import MapTimestamp from './components/panels/MapTimestamp'
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null)
   const { ready, map } = useMap(containerRef)
+  const { t } = useI18n()
   useLayerVisibility(ready ? map : null)
   useCyclonePulse(ready ? map : null)
   useCycloneRefresh(ready ? map : null)
@@ -45,12 +48,13 @@ export default function App() {
           <InspectPanel />
           <MeasurementPanel />
         </Suspense>
+        <VolcanoPopup />
         <ResolutionIndicator />
         <MapTimestamp />
         <MapControls />
         <ReplayControls />
         <TimeMachine />
-        {!ready && <div className="map-boot">Initializing NOAH …</div>}
+        {!ready && <div className="map-boot">{t('app.booting')}</div>}
       </div>
     </div>
   )

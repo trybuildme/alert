@@ -4,6 +4,7 @@ import { useMapStore, useSatelliteStore, useUIStore, useInspectStore, useLayerSt
 import { useReplayStore } from '../../stores/replay'
 import { ALL_PRODUCTS, BASEMAPS } from '../../config/mapConfig'
 import NotificationBell from './NotificationBell'
+import { useI18n } from '../../i18n'
 
 interface SearchResult {
   name: string
@@ -25,6 +26,7 @@ export default function TopBar() {
   const replayActive = useReplayStore((s) => s.active)
   const toggleReplay = useReplayStore((s) => s.toggle)
   const openInspect = useInspectStore((s) => s.openInspect)
+  const { t, lang, toggle: toggleLang } = useI18n()
 
   return (
     <header className="topbar">
@@ -43,7 +45,7 @@ export default function TopBar() {
       }} />
 
       <div className="topbar-group">
-        <span className="group-label">BASE MAP</span>
+        <span className="group-label">{t('topbar.basemap')}</span>
         <div className="switcher">
           {Object.values(BASEMAPS).map((bm) => (
             <button
@@ -59,7 +61,7 @@ export default function TopBar() {
       </div>
 
       <div className="topbar-group">
-        <span className="group-label">SATELLITE</span>
+        <span className="group-label">{t('topbar.satellite')}</span>
         <select
           className="product-select"
           value={activeProduct}
@@ -82,13 +84,13 @@ export default function TopBar() {
             onClick={() => setIrEnhanced(!irEnhanced)}
             title="Windy-style color enhancement: cold cloud tops flare yellow → red → violet"
           >
-            Enhanced
+            {t('topbar.enhanced')}
           </button>
         )}
       </div>
 
       <div className="topbar-group">
-        <span className="group-label">HAZARD</span>
+        <span className="group-label">{t('topbar.hazard')}</span>
         <button
           className={`switch-btn ${eqPanelOpen ? 'active' : ''}`}
           onClick={() => {
@@ -99,7 +101,7 @@ export default function TopBar() {
           }}
           title="Real-time earthquake monitor: detected events from USGS — live map, alerts, statistics"
         >
-          Quakes
+          {t('topbar.quakes')}
         </button>
         <button
           className={`switch-btn ${replayActive ? 'active' : ''}`}
@@ -113,12 +115,12 @@ export default function TopBar() {
           }}
           title="Time-lapse replay of historical earthquakes — pauses the live feed until you exit"
         >
-          Replay
+          {t('topbar.replay')}
         </button>
       </div>
 
       <div className="topbar-group">
-        <span className="group-label">TROPICAL</span>
+        <span className="group-label">{t('topbar.tropical')}</span>
         <button
           className={`switch-btn ${forecastPanelOpen ? 'active' : ''}`}
           onClick={() => {
@@ -131,13 +133,24 @@ export default function TopBar() {
           }}
           title="7-day cyclone outlook: predicted track, typhoon status and PAGASA signal numbers"
         >
-          Cyclone 7-Day
+          {t('topbar.cyclone7day')}
         </button>
       </div>
 
       <div className="mode-toggle">
-        <button className={!mode2D ? 'active' : ''} onClick={() => setMode2D(false)}>3D EARTH</button>
-        <button className={mode2D ? 'active' : ''} onClick={() => setMode2D(true)}>2D MAP</button>
+        <button className={!mode2D ? 'active' : ''} onClick={() => setMode2D(false)}>{t('topbar.mode3d')}</button>
+        <button className={mode2D ? 'active' : ''} onClick={() => setMode2D(true)}>{t('topbar.mode2d')}</button>
+      </div>
+
+      <div className="topbar-group">
+        <span className="group-label">{t('topbar.language')}</span>
+        <button
+          className={`switch-btn ${lang === 'fil' ? 'active' : ''}`}
+          onClick={toggleLang}
+          title="Switch language / Palitan ang wika"
+        >
+          {lang === 'en' ? 'FIL' : 'ENG'}
+        </button>
       </div>
 
       <NotificationBell />
@@ -150,6 +163,7 @@ function SearchBox({ onPick }: { onPick: (r: SearchResult) => void }) {
   const [results, setResults] = useState<SearchResult[]>([])
   const [open, setOpen] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { t } = useI18n()
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -176,7 +190,7 @@ function SearchBox({ onPick }: { onPick: (r: SearchResult) => void }) {
     <div className="searchbox">
       <input
         type="text"
-        placeholder="Search place or lat, lon …"
+        placeholder={t('search.placeholder')}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}

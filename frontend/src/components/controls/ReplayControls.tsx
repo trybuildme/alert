@@ -2,6 +2,7 @@
 // active; scrubs/plays historical earthquakes through the map source.
 
 import { REPLAY_SPEEDS, REPLAY_WINDOWS, useReplayStore } from '../../stores/replay'
+import { useI18n } from '../../i18n'
 
 function fmt(ms: number): string {
   return new Date(ms).toLocaleString(undefined, {
@@ -20,6 +21,7 @@ export default function ReplayControls() {
   const spanEndMs = useReplayStore((s) => s.spanEndMs)
   const eventCount = useReplayStore((s) => s.eventCount)
   const store = useReplayStore
+  const { t } = useI18n()
 
   if (!active) return null
 
@@ -34,7 +36,7 @@ export default function ReplayControls() {
           store.getState().setPlaying(!playing)
         }}
         disabled={loading || spanEndMs === 0}
-        title={playing ? 'Pause replay' : 'Play replay'}
+        title={playing ? t('replay.pauseTitle') : t('replay.playTitle')}
       >
         {loading ? '…' : playing ? '❚❚' : '▶'}
       </button>
@@ -43,7 +45,7 @@ export default function ReplayControls() {
         className="rp-select"
         value={windowDays}
         onChange={(e) => store.getState().setWindowDays(Number(e.target.value))}
-        title="History window to replay"
+        title={t('replay.windowTitle')}
       >
         {REPLAY_WINDOWS.map((w) => (
           <option key={w.days} value={w.days}>{w.label}</option>
@@ -54,7 +56,7 @@ export default function ReplayControls() {
         className="rp-select"
         value={speed}
         onChange={(e) => store.getState().setSpeed(Number(e.target.value))}
-        title="Playback speed"
+        title={t('replay.speedTitle')}
       >
         {REPLAY_SPEEDS.map((s) => (
           <option key={s.value} value={s.value}>{s.label}</option>
@@ -76,13 +78,13 @@ export default function ReplayControls() {
 
       <div className="rp-readout">
         <span className="rp-date">{cursorMs != null ? fmt(cursorMs) : '—'}</span>
-        <span className="rp-count">{loading ? 'loading…' : `${eventCount} events`}</span>
+        <span className="rp-count">{loading ? t('replay.loading') : `${eventCount} ${t('replay.events')}`}</span>
       </div>
 
       <button
         className="rp-exit"
         onClick={() => store.getState().toggle()}
-        title="Exit replay (returns to live feed)"
+        title={t('replay.exitTitle')}
       >
         ✕
       </button>

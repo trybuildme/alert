@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { useNotifStore, type NotifKind } from '../../stores/notifications'
 import { currentPushState, disableBrowserAlerts, enableBrowserAlerts, type PushState } from '../../lib/pushClient'
+import { useI18n } from '../../i18n'
 
 const KIND_META: Record<NotifKind, { icon: string; color: string; label: string }> = {
   earthquake: { icon: '🌍', color: '#ff9800', label: 'Earthquake' },
@@ -29,6 +30,7 @@ export default function NotificationBell() {
   const markAllRead = useNotifStore((s) => s.markAllRead)
   const [push, setPush] = useState<PushState | null>(null)
   const [pushBusy, setPushBusy] = useState(false)
+  const { t } = useI18n()
 
   // Probe push capability lazily when the dropdown first opens so we
   // don't fire /api/push/vapid on every page load.
@@ -45,8 +47,8 @@ export default function NotificationBell() {
       <button
         className={`notif-btn ${unread > 0 ? 'has-unread' : ''}`}
         onClick={toggle}
-        title="Notifications"
-        aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`}
+        title={t('notif.bellLabel')}
+        aria-label={`${t('notif.bellLabel')}${unread ? ` (${unread} unread)` : ''}`}
       >
         <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden>
           <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5v-1l-1.6-1.8a2 2 0 0 1-.5-1.33V9.5a4.9 4.9 0 0 0-3.9-4.8V4a1 1 0 1 0-2 0v.7a4.9 4.9 0 0 0-3.9 4.8v3.37a2 2 0 0 1-.5 1.32L5 16v1Z"/>
@@ -57,13 +59,13 @@ export default function NotificationBell() {
       {open && (
         <div className="notif-drop">
           <div className="notif-head">
-            <span>NOTIFICATIONS</span>
+            <span>{t('notif.title')}</span>
             {items.length > 0 && (
-              <button className="notif-clear" onClick={markAllRead}>Mark all read</button>
+              <button className="notif-clear" onClick={markAllRead}>{t('notif.markAllRead')}</button>
             )}
           </div>
           {items.length === 0 && (
-            <div className="notif-empty">No notifications yet.</div>
+            <div className="notif-empty">{t('notif.empty')}</div>
           )}
           {items.map((n) => {
             const meta = KIND_META[n.kind]
@@ -86,7 +88,7 @@ export default function NotificationBell() {
           })}
           {push && push.supported && !push.unconfigured && (
             <div className="notif-push">
-              <span className="notif-push-label">Browser alerts</span>
+              <span className="notif-push-label">{t('notif.browserAlerts')}</span>
               <button
                 className={`notif-push-btn ${push.enabled ? 'on' : ''}`}
                 disabled={pushBusy}
