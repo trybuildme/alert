@@ -36,7 +36,7 @@ from app.hazards.push import WebPushChannel
 from app.hazards.providers.phivolcs import PhivolcsProvider
 from app.hazards.providers.usgs import UsgsProvider
 from app.hazards.base import EventBus
-from app.hazards.store import EarthquakeStore
+from app.hazards.db import open_store
 from app.services.tile_service import TileService
 
 
@@ -60,7 +60,9 @@ async def lifespan(application: FastAPI):
     await cache.redis._ensure()
     # --- Earthquake intelligence module ---
     if settings.EARTHQUAKE_ENABLED:
-        store = EarthquakeStore(settings.EARTHQUAKE_DB_PATH)
+        # SQLite (WAL) by default; PostgreSQL/PostGIS when
+        # NOAH_DATABASE_URL is set — see app/hazards/db.py.
+        store = open_store(settings.EARTHQUAKE_DB_PATH)
         bus = EventBus()
         providers = [UsgsProvider(bbox=parse_bbox(settings.EARTHQUAKE_BBOX)),
                      PhivolcsProvider()]

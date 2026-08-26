@@ -360,13 +360,33 @@ class EarthquakeStore:
         return out
 
 
+    # -- backend-agnostic helpers --------------------------------------------
+    # PgHazardStore exposes the same methods so callers (e.g. /metrics)
+    # never need to know which engine is underneath.
+
+    def count_events(self) -> int:
+        with self._lock:
+            return self._conn.execute(
+                "SELECT COUNT(*) FROM earthquake_events").fetchone()[0]
+
+    def latest_updated_at(self) -> str | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT MAX(updated_at) FROM earthquake_events").fetchone()
+        return row[0] if row else None
+
+
 def scalar_count(store: EarthquakeStore) -> int:
+    if hasattr(store, "count_events"):
+        return store.count_events()
     with store._lock:
         return store._conn.execute(
             "SELECT COUNT(*) FROM earthquake_events").fetchone()[0]
 
 
 def latest_updated_at(store: EarthquakeStore) -> str | None:
+    if hasattr(store, "latest_updated_at"):
+        return store.latest_updated_at()
     with store._lock:
         row = store._conn.execute(
             "SELECT MAX(updated_at) FROM earthquake_events").fetchone()
