@@ -32,6 +32,20 @@ interface NotifState {
   add: (item: NotifItem) => void
   seed: (items: NotifItem[]) => void   // history loaded as already-read
   markAllRead: () => void
+  /** Drop items older than NOTIF_MAX_AGE_MS and resync the unread count. */
+  pruneExpired: () => void
+}
+
+// Notifications auto-expire after 24 hours — a hazard feed is news,
+// not an archive. Official alert history lives in the earthquake panel.
+export const NOTIF_MAX_AGE_MS = 24 * 60 * 60_000
+
+function freshOnly(items: NotifItem[]): NotifItem[] {
+  const cutoff = Date.now() - NOTIF_MAX_AGE_MS
+  return items.filter((i) => {
+    const ts = new Date(i.at).getTime()
+    return Number.isFinite(ts) && ts >= cutoff
+  })
 }
 
 export const useNotifStore = create<NotifState>((set) => ({
@@ -46,17 +60,31 @@ export const useNotifStore = create<NotifState>((set) => ({
   add: (item) =>
     set((s) => {
       if (s.items.some((i) => i.id === item.id)) return s   // dedup
-      const read = !s.open
+      // Arrivals land UNREAD unless the dropdown is already open on
+      // screen (then the user is watching the feed arrive). The old
+      // inverted condition marked everything read instantly, which is
+      // why the badge never showed.
+      const read = s.open
+      const items = freshOnly([{ ...item, read }, ...s.items]).slice(0, 50)
       return {
-        items: [{ ...item, read }, ...s.items].slice(0, 50),
-        unread: read ? s.unread : s.unread + 1,
+        items,
+        unread: items.filter((i) => !i.read).length,
       }
     }),
   seed: (items) =>
     set((s) => {
-      const fresh = items.filter((n) => !s.items.some((i) => i.id === n.id))
-      return { items: [...s.items, ...fresh].slice(0, 50) }
+      const incoming = freshOnly(
+        items.filter((n) => !s.items.some((i) => i.id === n.id)))
+      const merged = [...s.items, ...incoming].slice(0, 50)
+      return { items: merged }
     }),
   markAllRead: () =>
     set((s) => ({ unread: 0, items: s.items.map((i) => ({ ...i, read: true })) })),
+  pruneExpired: () =>
+    set((s) => {
+      const items = freshOnly(s.items)
+      const unread = items.filter((i) => !i.read).length
+      if (items.length === s.items.length && unread === s.unread) return s
+      return { items, unread }
+    }),
 }))

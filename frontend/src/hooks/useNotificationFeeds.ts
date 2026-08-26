@@ -193,6 +193,10 @@ export function useNotificationFeeds() {
     pollVolcanoes()
     const volTimer = setInterval(pollVolcanoes, VOLCANO_POLL_MS)
 
+    // ---- Expiry sweep: notifications last 24 h, then vanish ----
+    const pruneTimer = setInterval(
+      () => useNotifStore.getState().pruneExpired(), 60_000)
+
     // NOTE: flood channel is intentionally absent — no real source exists.
 
     return () => {
@@ -201,6 +205,7 @@ export function useNotificationFeeds() {
       clearInterval(cycTimer)
       clearInterval(tsuTimer)
       clearInterval(volTimer)
+      clearInterval(pruneTimer)
     }
   }, [])
 }
