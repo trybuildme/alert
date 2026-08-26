@@ -50,26 +50,54 @@ export const useSatelliteStore = create<SatelliteState>((set) => ({
 export interface LayerInfo {
   id: string
   name: string
+  /** Filipino display name (i18n 'fil'); falls back to `name`. */
+  nameFil?: string
   description: string
+  descriptionFil?: string
   visible: boolean
   opacity: number
   legend?: { label: string; color: string }[]
 }
 
 const INITIAL_LAYERS: LayerInfo[] = [
-  { id: 'satellite', name: 'Satellite', description: 'Active satellite product', visible: true, opacity: 1 },
-  { id: 'place-labels', name: 'Place Labels', description: 'City, town and village names (Google Maps style) — OSM settlements per viewport', visible: true, opacity: 1,
+  { id: 'satellite', name: 'Satellite', nameFil: 'Satelayt',
+    description: 'Active satellite product',
+    descriptionFil: 'Kasalukuyang produktong satelayt',
+    visible: true, opacity: 1 },
+  { id: 'place-labels', name: 'Place Labels', nameFil: 'Mga Pangalan ng Lugar',
+    description: 'City, town and village names (Google Maps style) — OSM settlements per viewport',
+    descriptionFil: 'Mga pangalan ng lungsod, bayan at barangay (estilong Google Maps) — mga pamayanan mula sa OSM kada viewport',
+    visible: true, opacity: 1,
     legend: [{ label: 'City', color: '#ffffff' }, { label: 'Town', color: '#f8fafc' }, { label: 'Village / district', color: '#f1f5f9' }] },
-  { id: 'admin-boundaries', name: 'Administrative Boundaries', description: 'Region → province → municipality → barangay hierarchy', visible: true, opacity: 1 },
+  { id: 'admin-boundaries', name: 'Administrative Boundaries', nameFil: 'Mga Hanggahan ng Administrasyon',
+    description: 'Region → province → municipality → barangay hierarchy',
+    descriptionFil: 'Hierarkiya: rehiyon → lalawigan → bayan → barangay',
+    visible: true, opacity: 1 },
   {
-    id: 'roads', name: 'Roads', description: 'OSM major roads and farm tracks', visible: false, opacity: 1,
+    id: 'roads', name: 'Roads', nameFil: 'Mga Daan',
+    description: 'OSM major roads and farm tracks',
+    descriptionFil: 'Pangunahing daan at landas ng bukid mula sa OSM',
+    visible: false, opacity: 1,
     legend: [{ label: 'Major road', color: '#ffffff' }, { label: 'Farm track', color: '#a1887f' }],
   },
-  { id: 'rivers', name: 'Rivers', description: 'OSM waterways and water bodies', visible: false, opacity: 1, legend: [{ label: 'Water', color: '#1e88e5' }] },
-  { id: 'elevation', name: 'Elevation', description: 'Hypsometric DEM hillshade (30 m class)', visible: false, opacity: 0.85, legend: [{ label: 'Lowland', color: '#3a6e4a' }, { label: 'Upland', color: '#ac845c' }, { label: 'Peak', color: '#ffffff' }] },
-  { id: 'agricultural-areas', name: 'Agricultural Areas', description: 'Monitored farm polygons', visible: false, opacity: 1, legend: [{ label: 'Farm boundary', color: '#facc15' }] },
+  { id: 'rivers', name: 'Rivers', nameFil: 'Mga Ilog',
+    description: 'OSM waterways and water bodies',
+    descriptionFil: 'Mga daluyan at anyong tubig mula sa OSM',
+    visible: false, opacity: 1, legend: [{ label: 'Water', color: '#1e88e5' }] },
+  { id: 'elevation', name: 'Elevation', nameFil: 'Elevasyon',
+    description: 'Hypsometric DEM hillshade (30 m class)',
+    descriptionFil: 'Hillshade mula sa DEM (30 m na klase)',
+    visible: false, opacity: 0.85,
+    legend: [{ label: 'Lowland', color: '#3a6e4a' }, { label: 'Upland', color: '#ac845c' }, { label: 'Peak', color: '#ffffff' }] },
+  { id: 'agricultural-areas', name: 'Agricultural Areas', nameFil: 'Mga Sakahan',
+    description: 'Monitored farm polygons',
+    descriptionFil: 'Mina-monitor na poligono ng bukid',
+    visible: false, opacity: 1, legend: [{ label: 'Farm boundary', color: '#facc15' }] },
   {
-    id: 'flood-risk', name: 'Flood Risk', description: 'Zoom-linked flood risk across Luzon — province squares refine to municipal detail as you zoom', visible: false, opacity: 1,
+    id: 'flood-risk', name: 'Flood Risk', nameFil: 'Peligro sa Baha',
+    description: 'Zoom-linked flood risk across Luzon — province squares refine to municipal detail as you zoom',
+    descriptionFil: 'Peligro sa baha sa buong Luzon — mga parisukat ng lalawigan na nagiging detalye ng bayan habang nag-zoom',
+    visible: false, opacity: 1,
     legend: [
       { label: 'High-risk province (zoomed out)', color: '#ef4444' },
       { label: 'High-risk municipality (zoomed in)', color: '#ef4444' },
@@ -77,11 +105,24 @@ const INITIAL_LAYERS: LayerInfo[] = [
       { label: 'Low risk', color: '#3b82f6' },
     ],
   },
-  { id: 'weather-stations', name: 'Weather Stations', description: 'Synoptic station network', visible: false, opacity: 1, legend: [{ label: 'Station', color: '#38bdf8' }] },
-  { id: 'rainfall', name: 'Rainfall', description: '3-hour accumulated rainfall estimate', visible: false, opacity: 0.75, legend: [{ label: '< 5 mm', color: '#bae6fd' }, { label: '5–15 mm', color: '#38bdf8' }, { label: '> 15 mm', color: '#1d4ed8' }] },
-  { id: 'alerts', name: 'Alerts', description: 'Active weather and crop alerts', visible: false, opacity: 1, legend: [{ label: 'Active alert zone', color: '#fb923c' }] },
+  { id: 'weather-stations', name: 'Weather Stations', nameFil: 'Mga Estasyon ng Panahon',
+    description: 'Synoptic station network',
+    descriptionFil: 'Network ng mga synoptic na estasyon',
+    visible: false, opacity: 1, legend: [{ label: 'Station', color: '#38bdf8' }] },
+  { id: 'rainfall', name: 'Rainfall', nameFil: 'Ulan',
+    description: '3-hour accumulated rainfall estimate',
+    descriptionFil: 'Tantong accumulated na ulan sa nakalipas na 3 oras',
+    visible: false, opacity: 0.75,
+    legend: [{ label: '< 5 mm', color: '#bae6fd' }, { label: '5–15 mm', color: '#38bdf8' }, { label: '> 15 mm', color: '#1d4ed8' }] },
+  { id: 'alerts', name: 'Alerts', nameFil: 'Mga Alerto',
+    description: 'Active weather and crop alerts',
+    descriptionFil: 'Mga aktibong alerto ng panahon at pananim',
+    visible: false, opacity: 1, legend: [{ label: 'Active alert zone', color: '#fb923c' }] },
   {
-    id: 'earthquakes', name: 'Earthquakes · Live', description: 'Detected events from USGS feeds (PH region focus) — real-time, not forecasts or predictions', visible: true, opacity: 1,
+    id: 'earthquakes', name: 'Earthquakes · Live', nameFil: 'Lindol · Live',
+    description: 'Detected events from USGS feeds (PH region focus) — real-time, not forecasts or predictions',
+    descriptionFil: 'Mga natukoy na lindol mula sa USGS (nakatuon sa rehiyon ng PH) — real-time, hindi paghula o prediksyon',
+    visible: true, opacity: 1,
     legend: [
       { label: 'Shallow < 70 km', color: '#ff2020' },
       { label: 'Intermediate 70–300 km', color: '#ff9800' },
@@ -89,15 +130,24 @@ const INITIAL_LAYERS: LayerInfo[] = [
     ],
   },
   {
-    id: 'tsunamis', name: 'Tsunami Bulletins', description: 'Issued tsunami products from NOAA/NWS tsunami.gov — official bulletins, not forecasts', visible: false, opacity: 1,
+    id: 'tsunamis', name: 'Tsunami Bulletins', nameFil: 'Mga Abiso ng Tsunami',
+    description: 'Issued tsunami products from NOAA/NWS tsunami.gov — official bulletins, not forecasts',
+    descriptionFil: 'Mga inisyu na produkto ng tsunami mula sa NOAA/NWS tsunami.gov — opisyal na abiso, hindi paghula',
+    visible: false, opacity: 1,
     legend: [{ label: 'Issued bulletin', color: '#22d3ee' }],
   },
   {
-    id: 'volcanoes', name: 'Volcano Sites', description: 'PHIVOLCS-monitored volcano registry — green = flagged currently active (curated snapshot, not live alert levels)', visible: true, opacity: 1,
+    id: 'volcanoes', name: 'Volcano Sites', nameFil: 'Mga Bulkang Binabantayan',
+    description: 'PHIVOLCS-monitored volcano registry — green = flagged currently active (curated snapshot, not live alert levels)',
+    descriptionFil: 'Rehistro ng mga bulkang binabantayan ng PHIVOLCS — berde = kasalukuyang aktibo (curated snapshot, hindi live na antas ng alerto)',
+    visible: true, opacity: 1,
     legend: [{ label: 'Active now (snapshot)', color: '#22c55e' }, { label: 'Monitored, quiet', color: '#f97316' }],
   },
   {
-    id: 'cyclones', name: 'Cyclone Tracks', description: 'Active tropical cyclones — NOAA IBTrACS best-track (~3× weekly, not operational warnings). Colors per PAGASA / panahon.gov.ph classification', visible: false, opacity: 1,
+    id: 'cyclones', name: 'Cyclone Tracks', nameFil: 'Mga Landas ng Bagyo',
+    description: 'Active tropical cyclones — NOAA IBTrACS best-track (~3× weekly, not operational warnings). Colors per PAGASA / panahon.gov.ph classification',
+    descriptionFil: 'Mga aktibong bagyo — NOAA IBTrACS best-track (~3× kada linggo, hindi operasyonal na babala). Kulay ayon sa klasipikasyon ng PAGASA / panahon.gov.ph',
+    visible: false, opacity: 1,
     legend: [
       { label: 'Tropical Depression', color: '#00e400' },
       { label: 'Tropical Storm', color: '#ffe400' },
@@ -107,7 +157,10 @@ const INITIAL_LAYERS: LayerInfo[] = [
     ],
   },
   {
-    id: 'cyclone-forecast', name: 'Cyclone Forecast · 7-Day', description: 'Naive persistence extrapolation of best-track motion — NOT an official PAGASA/JTWC forecast. Colors per PAGASA / panahon.gov.ph classification', visible: false, opacity: 1,
+    id: 'cyclone-forecast', name: 'Cyclone Forecast · 7-Day', nameFil: 'Pagtataya ng Bagyo · 7-Araw',
+    description: 'Naive persistence extrapolation of best-track motion — NOT an official PAGASA/JTWC forecast. Colors per PAGASA / panahon.gov.ph classification',
+    descriptionFil: 'Naive na pagpapatuloy ng kilos ng best-track — HINDI opisyal na pagtataya ng PAGASA/JTWC. Kulay ayon sa klasipikasyon ng PAGASA / panahon.gov.ph',
+    visible: false, opacity: 1,
     legend: [
       { label: 'Predicted track', color: '#fb923c' },
       { label: 'Tropical Depression', color: '#00e400' },
@@ -118,11 +171,16 @@ const INITIAL_LAYERS: LayerInfo[] = [
     ],
   },
   {
-    id: 'cyclone-clouds', name: 'Cyclone Clouds · Himawari-9 IR', description: 'Live infrared cloud canopy around active systems (latest 10-min frame, qualitative)', visible: false, opacity: 0.75,
+    id: 'cyclone-clouds', name: 'Cyclone Clouds · Himawari-9 IR', nameFil: 'Uláp ng Bagyo · Himawari-9 IR',
+    description: 'Live infrared cloud canopy around active systems (latest 10-min frame, qualitative)',
+    descriptionFil: 'Live na infrared na balumbon ng ulap sa paligid ng mga aktibong bagyo (pinakabagong 10-min frame, kwalitatibo)',
+    visible: false, opacity: 0.75,
     legend: [{ label: 'IR cloud tops', color: '#94a3b8' }],
   },
   {
-    id: 'par', name: 'Philippine Area of Responsibility', description: 'PAGASA PAR boundary: 5°N 115°E → 15°N 115°E → 21°N 120°E → 25°N 120°E → 25°N 135°E → 5°N 135°E', visible: true, opacity: 1,
+    id: 'par', name: 'Philippine Area of Responsibility',
+    description: 'PAGASA PAR boundary: 5°N 115°E → 15°N 115°E → 21°N 120°E → 25°N 120°E → 25°N 135°E → 5°N 135°E',
+    visible: true, opacity: 1,
     legend: [{ label: 'PAR boundary (solid)', color: '#facc15' }],
   },
 ]
@@ -405,6 +463,7 @@ interface UIState {
   eqPanelOpen: boolean
   eqMinMag: number
   eqSelectedUid: string | null
+  volcanoUid: string | null
   setBasemap: (b: string) => void
   setMode2D: (v: boolean) => void
   toggleLayerPanel: () => void
@@ -415,6 +474,7 @@ interface UIState {
   toggleEqPanel: () => void
   setEqMinMag: (v: number) => void
   setEqSelectedUid: (uid: string | null) => void
+  setVolcanoUid: (uid: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -436,7 +496,9 @@ export const useUIStore = create<UIState>((set) => ({
   eqPanelOpen: false,
   eqMinMag: 2.5,
   eqSelectedUid: null,
+  volcanoUid: null,
   toggleEqPanel: () => set((s) => ({ eqPanelOpen: !s.eqPanelOpen })),
   setEqMinMag: (eqMinMag) => set({ eqMinMag }),
   setEqSelectedUid: (eqSelectedUid) => set({ eqSelectedUid }),
+  setVolcanoUid: (volcanoUid) => set({ volcanoUid }),
 }))

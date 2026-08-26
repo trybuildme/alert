@@ -31,6 +31,17 @@ export function attachInteractions(map: maplibregl.Map): void {
       return
     }
 
+    const volcanoHits = map.queryRenderedFeatures(e.point, { layers: ['volcano-circle'] })
+    if (volcanoHits.length > 0) {
+      const uid = volcanoHits[0].properties?.uid as string | undefined
+      if (uid) {
+        useUIStore.getState().setVolcanoUid(uid)
+        // Bring the edifice fully on screen for the imagery thumbnail.
+        map.flyTo({ center: e.lngLat, zoom: Math.max(map.getZoom(), 11), speed: 1.2, essential: true })
+      }
+      return
+    }
+
     const farmHits = map.queryRenderedFeatures(e.point, { layers: ['farms-fill'] })
     if (farmHits.length > 0) {
       const f = farmHits[0]

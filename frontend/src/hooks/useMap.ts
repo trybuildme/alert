@@ -70,6 +70,9 @@ export function useMap(containerRef: React.RefObject<HTMLDivElement | null>) {
 
     mapRef.current = map
     setMap(map)
+    // Debug/test hook: lets Playwright project coordinates and drive
+    // the map in E2E specs (window.__noah_map.project(...)).
+    ;(window as unknown as { __noah_map?: maplibregl.Map }).__noah_map = map
 
     return () => {
       map.remove()
