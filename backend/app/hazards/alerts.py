@@ -25,7 +25,7 @@ from pathlib import Path
 
 from app.hazards.base import SEVERITIES, HazardEvent
 
-logger = logging.getLogger("noah.hazards.alerts")
+logger = logging.getLogger("alert.hazards.alerts")
 
 DEFAULT_RULES = [
     {"name": "major-quake-global", "severity": "CRITICAL",

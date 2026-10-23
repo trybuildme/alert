@@ -95,8 +95,8 @@ const INITIAL_LAYERS: LayerInfo[] = [
     visible: false, opacity: 1, legend: [{ label: 'Farm boundary', color: '#facc15' }] },
   {
     id: 'flood-risk', name: 'Flood Risk', nameFil: 'Peligro sa Baha',
-    description: 'SIMULATED flood-risk model (demo) — not an operational hazard map. Official advisories via PAGASA/MGB',
-    descriptionFil: 'SIMULADONG modelo ng peligro sa baha — hindi opisyal. Opisyal na babala via PAGASA/MGB',
+    description: 'Terrain-based flood-risk model (static) — for hazard zonation. Live flood monitoring via Rain Stations · Live layer',
+    descriptionFil: 'Batay sa terrain ang modelo ng peligro sa baha — para sa hazard zonation. Live na pagsubaybay sa Rain Stations · Live layer',
     visible: false, opacity: 1,
     legend: [
       { label: 'High-risk province (zoomed out)', color: '#ef4444' },
@@ -106,12 +106,12 @@ const INITIAL_LAYERS: LayerInfo[] = [
     ],
   },
   { id: 'weather-stations', name: 'Weather Stations', nameFil: 'Mga Estasyon ng Panahon',
-    description: 'Real station locations; readings are SIMULATED placeholders (no live observation feed yet)',
-    descriptionFil: 'Tunay na lokasyon ng istasyon; mga readings ay simulated pa lamang',
+    description: 'PAGASA synoptic station locations — for reference only. Live rainfall data via Rain Stations · Live layer',
+    descriptionFil: 'Mga lokasyon ng istasyon ng PAGASA — para sa sanggunian lamang. Live na data ng ulan sa Rain Stations · Live layer',
     visible: false, opacity: 1, legend: [{ label: 'Station', color: '#38bdf8' }] },
   { id: 'rainfall', name: 'Rainfall', nameFil: 'Ulan',
-    description: 'SIMULATED rainfall estimate at real station locations — no live gauge feed yet',
-    descriptionFil: 'SIMULADONG tantong ulan — wala pang live na gauge feed',
+    description: 'Static rainfall zones — for reference only. Live rainfall data via Rain Stations · Live layer',
+    descriptionFil: 'Static na zone ng ulan — para sa sanggunian lamang. Live na data ng ulan sa Rain Stations · Live layer',
     visible: false, opacity: 0.75,
     legend: [{ label: '< 5 mm', color: '#bae6fd' }, { label: '5–15 mm', color: '#38bdf8' }, { label: '> 15 mm', color: '#1d4ed8' }] },
   {
@@ -136,7 +136,7 @@ const INITIAL_LAYERS: LayerInfo[] = [
   },
   {
     id: 'flood-alerts-layer', name: 'Flood Alerts · Live', nameFil: 'Mga Babala sa Baha · Live',
-    description: 'Stations currently at ADVISORY or above per NOAH\'s observed-rainfall classification — not official PAGASA warnings',
+    description: 'Stations currently at ADVISORY or above per ALERT\'s observed-rainfall classification — not official PAGASA warnings',
     descriptionFil: 'Mga istasyon na ADVISORY pataas ayon sa obserbasyong ulan — hindi opisyal na babala ng PAGASA',
     visible: false, opacity: 1,
     legend: [{ label: 'Active flood alert', color: '#ef4444' }],
@@ -169,6 +169,18 @@ const INITIAL_LAYERS: LayerInfo[] = [
     descriptionFil: 'Rehistro ng mga bulkang binabantayan ng PHIVOLCS — berde = kasalukuyang aktibo (curated snapshot, hindi live na antas ng alerto)',
     visible: true, opacity: 1,
     legend: [{ label: 'Active now (snapshot)', color: '#22c55e' }, { label: 'Monitored, quiet', color: '#f97316' }],
+  },
+  {
+    id: 'buildings-3d', name: '3D Buildings · Luzon', nameFil: '3D na mga Gusali · Luzon',
+    description: 'Extruded building footprints from OSM (height > 15m or levels > 5) — Luzon region only',
+    descriptionFil: 'Mga extruded na building footprint mula sa OSM — Luzon region lamang',
+    visible: false, opacity: 0.8,
+    legend: [
+      { label: '< 20m', color: '#94a3b8' },
+      { label: '20–50m', color: '#60a5fa' },
+      { label: '50–100m', color: '#8b5cf6' },
+      { label: '> 100m', color: '#f43f5e' },
+    ],
   },
   {
     id: 'cyclones', name: 'Cyclone Tracks', nameFil: 'Mga Landas ng Bagyo',
@@ -205,6 +217,19 @@ const INITIAL_LAYERS: LayerInfo[] = [
     legend: [{ label: 'IR cloud tops', color: '#94a3b8' }],
   },
   {
+    id: 'rain-radar', name: 'Rain Radar · Live', nameFil: 'Rain Radar · Live',
+    description: 'Real-time precipitation intensity from RainViewer global radar composite (PAGASA + international radars) — refreshes every 10 min',
+    descriptionFil: 'Real-time na intensity ng ulan mula sa RainViewer global radar composite — nagre-refresh bawat 10 min',
+    visible: false, opacity: 0.75,
+    legend: [
+      { label: 'Light rain', color: '#38bdf8' },
+      { label: 'Moderate', color: '#22c55e' },
+      { label: 'Heavy', color: '#facc15' },
+      { label: 'Very heavy', color: '#f97316' },
+      { label: 'Extreme', color: '#ef4444' },
+    ],
+  },
+  {
     id: 'par', name: 'Philippine Area of Responsibility',
     description: 'PAGASA PAR boundary: 5°N 115°E → 15°N 115°E → 21°N 120°E → 25°N 120°E → 25°N 135°E → 5°N 135°E',
     visible: true, opacity: 1,
@@ -231,7 +256,7 @@ interface LayerState {
 // toggles from here forward.
 // v3: bumped 2026-08-25 so snapshots saved before the volcano layer
 // shipped stop forcing it off; volcano now defaults to visible.
-const LAYER_STORAGE_KEY = 'noah.layers.v3'
+const LAYER_STORAGE_KEY = 'alert.layers.v4'
 
 type SavedLayerState = { visible?: boolean; opacity?: number }
 
@@ -522,6 +547,7 @@ interface UIState {
   eqSelectedUid: string | null
   volcanoUid: string | null
   floodStationId: string | null
+  screenshotPanelOpen: boolean
   setBasemap: (b: string) => void
   setMode2D: (v: boolean) => void
   toggleLayerPanel: () => void
@@ -534,6 +560,7 @@ interface UIState {
   setEqSelectedUid: (uid: string | null) => void
   setVolcanoUid: (uid: string | null) => void
   setFloodStationId: (id: string | null) => void
+  toggleScreenshotPanel: () => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -557,9 +584,11 @@ export const useUIStore = create<UIState>((set) => ({
   eqSelectedUid: null,
   volcanoUid: null,
   floodStationId: null,
+  screenshotPanelOpen: false,
   toggleEqPanel: () => set((s) => ({ eqPanelOpen: !s.eqPanelOpen })),
   setEqMinMag: (eqMinMag) => set({ eqMinMag }),
   setEqSelectedUid: (eqSelectedUid) => set({ eqSelectedUid }),
   setVolcanoUid: (volcanoUid) => set({ volcanoUid }),
   setFloodStationId: (floodStationId) => set({ floodStationId }),
+  toggleScreenshotPanel: () => set((s) => ({ screenshotPanelOpen: !s.screenshotPanelOpen })),
 }))

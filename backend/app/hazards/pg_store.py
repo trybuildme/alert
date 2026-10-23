@@ -1,8 +1,8 @@
 """PostgreSQL / PostGIS backend for normalized hazard events.
 
 This is the migration path documented in docs/earthquake/DATABASE.md:
-NOAH's default store is stdlib SQLite (WAL) because one module never
-justifies a database container. When NOAH is scaled out (multiple
+ALERT's default store is stdlib SQLite (WAL) because one module never
+justifies a database container. When ALERT is scaled out (multiple
 workers/replicas sharing state), set NOAH_DATABASE_URL to a postgres
 DSN and this store takes over — the public interface is identical to
 app.hazards.store.EarthquakeStore, so main.py, ingest workers, API

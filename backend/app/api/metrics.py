@@ -43,9 +43,9 @@ async def metrics(request: Request) -> str:
     cache = getattr(request.app.state, "cache", None)
     if cache is not None:
         stats = getattr(cache, "stats", {})
-        lines.append(_fmt("noah_cache_hits_total",
+        lines.append(_fmt("alert_cache_hits_total",
                           stats.get("hits", 0), metric_type="counter"))
-        lines.append(_fmt("noah_cache_misses_total",
+        lines.append(_fmt("alert_cache_misses_total",
                           stats.get("misses", 0), metric_type="counter"))
 
     eq = getattr(request.app.state, "earthquakes", None)
@@ -55,24 +55,24 @@ async def metrics(request: Request) -> str:
             for provider_name, st in getattr(worker, "stats", {}).items():
                 label = f'{{provider="{_escape(provider_name)}"}}'
                 for key in ("received", "accepted", "duplicates", "rejected"):
-                    lines.append(_fmt(f"noah_provider_{key}_total",
+                    lines.append(_fmt(f"alert_provider_{key}_total",
                                       st.get(key, 0), label,
                                       metric_type="counter"))
                 latency = st.get("last_latency_ms")
                 if latency is not None:
-                    lines.append(_fmt("noah_provider_last_latency_ms",
+                    lines.append(_fmt("alert_provider_last_latency_ms",
                                       latency, label))
                 last_success = st.get("last_success")
                 if last_success is not None:
-                    lines.append(_fmt("noah_provider_last_success_timestamp",
+                    lines.append(_fmt("alert_provider_last_success_timestamp",
                                       int(last_success), label))
         bus = eq.get("bus")
         if bus is not None:
-            lines.append(_fmt("noah_stream_clients", bus.subscriber_count))
+            lines.append(_fmt("alert_stream_clients", bus.subscriber_count))
         store = eq.get("store")
         if store is not None:
             try:
-                lines.append(_fmt("noah_earthquake_events_stored",
+                lines.append(_fmt("alert_earthquake_events_stored",
                                   scalar_count(store)))
             except Exception:  # noqa: BLE001 — metrics must not fail requests
                 pass

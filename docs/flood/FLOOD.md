@@ -1,6 +1,6 @@
-# NOAH Flood Monitoring Module
+# ALERT Flood Monitoring Module
 
-Real-time flood monitoring and mapping as a first-class NOAH capability,
+Real-time flood monitoring and mapping as a first-class ALERT capability,
 built on the existing hazards-module architecture.
 
 ## Data honesty ledger
@@ -11,7 +11,7 @@ built on the existing hazards-module architecture.
 | Water-level gauges | **PLACEHOLDER** | Registry holds real gauge locations (Marikina system). PAGASA/DENR publish no open machine-readable feed; `pagasa_water.py` is a disabled adapter — stations report `offline-awaiting-feed`, never fabricated values |
 | Satellite flood extent | **NOT WIRED** | No suitable public WMTS product identified; layer hooks exist. Awaiting provider decision |
 | Flood hazard zones | **LEGACY DEMO** | The pre-existing `flood-risk` map layer is simulated (labeled in-UI). Authoritative PAGASA/MGB hazard GIS files can be ingested when obtained |
-| Risk levels | **DERIVED (observed)** | NOAH's classification of observed rainfall — explicitly NOT official PAGASA warnings |
+| Risk levels | **DERIVED (observed)** | ALERT's classification of observed rainfall — explicitly NOT official PAGASA warnings |
 | Alerts | **REAL processing** | Threshold engine on real observations, persisted, dispatched through existing channels |
 
 ## Architecture / data flow
@@ -61,14 +61,14 @@ PostGIS path identical to the earthquake module (`NOAH_DATABASE_URL`).
 | `GET /api/flood/status` | Level counts, per-station level, active alerts, worker health |
 | `GET /api/flood/alerts?limit=` | Recent alerts incl. active/resolved |
 
-All reads are health-tier public (consistent with other NOAH surfaces);
+All reads are health-tier public (consistent with other ALERT surfaces);
 there is no write endpoint — ingestion is server-side only, which closes
 unauthorized sensor submissions by construction.
 
 ## Flood-risk logic & thresholds
 
 Per-station worst-of across metrics; defaults (JSON-overridable via
-`NOAH_FLOOD_THRESHOLDS_PATH`):
+`FLOOD_THRESHOLDS_PATH`, legacy alias `NOAH_FLOOD_THRESHOLDS`):
 
 - mm/h: ADVISORY ≥2.5 · WATCH ≥7.5 · WARNING ≥15 · CRITICAL ≥30
 - 3 h: 5 / 10 / 20 / 45
@@ -76,7 +76,7 @@ Per-station worst-of across metrics; defaults (JSON-overridable via
 
 Water-level thresholds intentionally `null` until real gauge datum
 thresholds arrive per station. Every assessment carries `basis:
-'observed'` and per-level recommended actions. Engine outputs are NOAH's
+'observed'` and per-level recommended actions. Engine outputs are ALERT's
 automated synthesis — not official PAGASA Alert Levels.
 
 Alerts dedupe as one row per station (`flood:<station_id>`); level
@@ -89,11 +89,11 @@ auto-resolves. Dispatch reuses the earthquake module's channels
 | Var | Default | Meaning |
 |---|---|---|
 | `FLOOD_ENABLED` | true | Module master switch |
-| `NOAH_FLOOD_DB` | backend/data/flood.db | SQLite path |
+| `FLOOD_DB_PATH` (legacy `NOAH_FLOOD_DB`) | backend/data/flood.db | SQLite path |
 | `FLOOD_POLL_INTERVAL` | 600 s | Provider poll cadence |
 | `FLOOD_ALERT_ENABLED` | true | Notification dispatch |
-| `NOAH_FLOOD_THRESHOLDS_PATH` | "" | JSON threshold overrides |
-| `NOAH_FLOOD_PAGASA_URL` | "" | Reserved for authorized feed |
+| `FLOOD_THRESHOLDS_PATH` (legacy `NOAH_FLOOD_THRESHOLDS`) | "" | JSON threshold overrides |
+| `FLOOD_PAGASA_URL` (legacy `NOAH_FLOOD_PAGASA_URL`) | "" | Reserved for authorized feed |
 
 ## GIS layers (all independently switchable)
 

@@ -1,5 +1,5 @@
 // Minimal error boundary: one broken panel must never blank the whole
-// NOAH app (a render-time throw in an unbounded subtree unmounts the
+// ALERT app (a render-time throw in an unbounded subtree unmounts the
 // React root — that took the entire map down when the elevation panel
 // hit a malformed payload).
 
@@ -24,7 +24,7 @@ export default class PanelErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     // eslint-disable-next-line no-console
-    console.error('[noah] panel crash:', this.props.label ?? 'panel', error.message)
+    console.error('[alert] panel crash:', this.props.label ?? 'panel', error.message)
   }
 
   render() {

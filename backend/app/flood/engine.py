@@ -4,7 +4,7 @@ Combines per-station metrics into one of five clearly-defined statuses:
 
     NORMAL > ADVISORY > WATCH > WARNING > CRITICAL
 
-Default thresholds (NOAH-defined, PAGASA-inspired rainfall heuristics —
+Default thresholds (ALERT-defined, PAGASA-inspired rainfall heuristics —
 NOT official PAGASA warnings) live in a JSON file (env:
 NOAH_FLOOD_THRESHOLDS_PATH) so operators can tune without code changes:
 

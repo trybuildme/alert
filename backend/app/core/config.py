@@ -1,9 +1,9 @@
 """Application settings via pydantic-settings.
 
-Environment variables keep their historical names (NOAH_*, EARTHQUAKE_*)
-via explicit aliases, so existing deployments and docker-compose files
-continue to work unchanged. Every field is overridable by env; defaults
-match the previous hand-rolled os.getenv configuration.
+Environment variables support both ALERT_* (new) and NOAH_* (legacy)
+names via AliasChoices, so existing deployments continue to work.
+Every field is overridable by env; defaults match the previous
+hand-rolled os.getenv configuration.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         env_file=None, extra="ignore", frozen=False,
         validate_assignment=False, case_sensitive=True)
 
-    APP_NAME: str = "NOAH"
+    APP_NAME: str = "ALERT"
     VERSION: str = "1.0.0"
 
     # Redis (optional at dev time; falls back to filesystem + memory)
@@ -80,8 +80,9 @@ class Settings(BaseSettings):
     FLOOD_THRESHOLDS_PATH: str = Field(
         "", validation_alias=AliasChoices("NOAH_FLOOD_THRESHOLDS"))
     # Authorized PAGASA water-level feed (none exists publicly yet).
-    NOAH_FLOOD_PAGASA_URL: str = Field(
-        "", validation_alias=AliasChoices("NOAH_FLOOD_PAGASA_URL"))
+    FLOOD_PAGASA_URL: str = Field(
+        "", validation_alias=AliasChoices("FLOOD_PAGASA_URL",
+                                          "NOAH_FLOOD_PAGASA_URL"))
 
     EARTHQUAKE_POLL_INTERVAL: int = 300
     EARTHQUAKE_MIN_MAGNITUDE: float = 2.5
@@ -103,9 +104,13 @@ class Settings(BaseSettings):
         "", validation_alias=AliasChoices("NOAH_EQ_ALERT_RULES"))
     EARTHQUAKE_WS_ENABLED: bool = True
     # Regional monitoring focus (default: Aurora Province, PH)
-    NOAH_EQ_REF_LAT: float = 15.78
-    NOAH_EQ_REF_LON: float = 121.55
-    NOAH_EQ_REF_RADIUS_KM: float = 150
+    EQ_REF_LAT: float = Field(
+        15.78, validation_alias=AliasChoices("EQ_REF_LAT", "NOAH_EQ_REF_LAT"))
+    EQ_REF_LON: float = Field(
+        121.55, validation_alias=AliasChoices("EQ_REF_LON", "NOAH_EQ_REF_LON"))
+    EQ_REF_RADIUS_KM: float = Field(
+        150, validation_alias=AliasChoices("EQ_REF_RADIUS_KM",
+                                           "NOAH_EQ_REF_RADIUS_KM"))
 
     # --- Notifications (dispatcher channels) ---
     ALERT_RETENTION_DAYS: int = Field(

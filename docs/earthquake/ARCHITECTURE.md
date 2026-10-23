@@ -1,4 +1,4 @@
-# NOAH · Earthquake Intelligence Module — Architecture Assessment
+# ALERT · Earthquake Intelligence Module — Architecture Assessment
 
 **Status:** implemented as described here · **Date:** 2026-08-24
 **Scope:** first module of a broader real-time geospatial hazard-intelligence
@@ -41,7 +41,7 @@ map skeleton.
 
 ## 3. Key architectural decisions
 
-1. **Storage: SQLite via stdlib `sqlite3`** — NOAH has *no* database;
+1. **Storage: SQLite via stdlib `sqlite3`** — ALERT has *no* database;
    introducing PostgreSQL+PostGIS solely for this module would violate
    "no unnecessary second database / smallest coherent increment". SQLite WAL
    mode, single writer connection guarded by a lock, indexes on origin_time,

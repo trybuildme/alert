@@ -5,6 +5,7 @@ import { useLayerVisibility } from './hooks/useLayerVisibility'
 import { useDrawing } from './hooks/useDrawing'
 import { useCyclonePulse } from './hooks/useCyclonePulse'
 import { useCycloneRefresh } from './hooks/useCycloneRefresh'
+import { useRainRadarRefresh } from './hooks/useRainRadarRefresh'
 import { useEarthquakes } from './hooks/useEarthquakes'
 import { useReplay } from './hooks/useReplay'
 import { useNotificationFeeds } from './hooks/useNotificationFeeds'
@@ -20,6 +21,7 @@ const InspectPanel = lazy(() => import('./components/panels/InspectPanel'))
 const CycloneForecastPanel = lazy(() => import('./components/panels/CycloneForecastPanel'))
 const EarthquakePanel = lazy(() => import('./components/panels/EarthquakePanel'))
 const MeasurementPanel = lazy(() => import('./components/panels/MeasurementPanel'))
+const ScreenshotExportPanel = lazy(() => import('./components/panels/ScreenshotExportPanel'))
 import VolcanoPopup from './components/panels/VolcanoPopup'
 import ResolutionIndicator from './components/panels/ResolutionIndicator'
 import MapTimestamp from './components/panels/MapTimestamp'
@@ -34,6 +36,7 @@ export default function App() {
   useLayerVisibility(ready ? map : null)
   useCyclonePulse(ready ? map : null)
   useCycloneRefresh(ready ? map : null)
+  useRainRadarRefresh(ready ? map : null)
   useEarthquakes(ready ? map : null)
   useReplay(ready ? map : null)
   useNotificationFeeds()
@@ -50,6 +53,7 @@ export default function App() {
           <PanelErrorBoundary label="Earthquake monitor"><EarthquakePanel /></PanelErrorBoundary>
           <PanelErrorBoundary label="Location inspector"><InspectPanel /></PanelErrorBoundary>
           <PanelErrorBoundary label="Draw & measure"><MeasurementPanel /></PanelErrorBoundary>
+          <PanelErrorBoundary label="Screenshot export"><ScreenshotExportPanel /></PanelErrorBoundary>
         </Suspense>
         <PanelErrorBoundary label="Volcano popup"><VolcanoPopup /></PanelErrorBoundary>
         <PanelErrorBoundary label="Elevation profile"><ProfilePopup /></PanelErrorBoundary>

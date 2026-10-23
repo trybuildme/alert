@@ -46,7 +46,8 @@ export function useMap(containerRef: React.RefObject<HTMLDivElement | null>) {
       maxZoom: 19,
       attributionControl: { compact: true },
       fadeDuration: 150,
-      maxPitch: 70,
+      maxPitch: 60,
+      preserveDrawingBuffer: true,
       canvasContextAttributes: { antialias: true },
     } as maplibregl.MapOptions)
 
@@ -64,8 +65,19 @@ export function useMap(containerRef: React.RefObject<HTMLDivElement | null>) {
     map.on('move', syncView)
 
     map.on('load', async () => {
-      await loadPostStyleData(map)
+      // Enable 3D terrain only if not in 2D mode
+      const { mode2D } = useUIStore.getState()
+      if (!mode2D) {
+        try {
+          map.setTerrain({ source: 'terrain-dem', exaggeration: 18 })
+        } catch (e) {
+          console.warn('setTerrain failed:', e)
+        }
+      }
+
+      // Mark ready immediately so the map renders — data loads in background
       setReady(true)
+      loadPostStyleData(map).catch(() => {})
     })
 
     attachInteractions(map)
@@ -73,8 +85,8 @@ export function useMap(containerRef: React.RefObject<HTMLDivElement | null>) {
     mapRef.current = map
     setMap(map)
     // Debug/test hook: lets Playwright project coordinates and drive
-    // the map in E2E specs (window.__noah_map.project(...)).
-    ;(window as unknown as { __noah_map?: maplibregl.Map }).__noah_map = map
+    // the map in E2E specs (window.__alert_map.project(...)).
+    ;(window as unknown as { __alert_map?: maplibregl.Map }).__alert_map = map
 
     return () => {
       map.remove()
@@ -105,13 +117,20 @@ export function useMap(containerRef: React.RefObject<HTMLDivElement | null>) {
 
   // ---- Globe projection (3D Earth mode; CesiumJS-compatible data stack) ----
   useEffect(() => {
+    let isFirst = true
     const unsub = useUIStore.subscribe((state) => {
       const map = mapRef.current
       if (!map) return
+      // Skip first fire (mount) — terrain is already configured in load handler
+      if (isFirst) { isFirst = false; return }
       try {
         ;(map as unknown as { setProjection: (p: { type: string }) => void }).setProjection(
           state.mode2D ? { type: 'mercator' } : { type: 'globe' },
         )
+        // Toggle 3D terrain based on mode
+        if (map.loaded()) {
+          map.setTerrain(state.mode2D ? null : { source: 'terrain-dem', exaggeration: 18 })
+        }
       } catch {
         /* projection unsupported in this runtime */
       }
@@ -179,6 +198,7 @@ async function loadPostStyleData(map: maplibregl.Map) {
     ['alerts', '/api/alerts'],
     ['cyclones', '/api/cyclones'],
     ['volcanoes', '/api/volcanoes'],
+    ['buildings', '/api/buildings'],
     // tsunami feed may be temporarily unavailable -> honest empty layer
     ['tsunamis', '/api/tsunamis'],
     // flood monitoring: stations GeoJSON (real rainfall + honest

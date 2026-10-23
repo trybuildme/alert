@@ -1,4 +1,4 @@
-// Browser Web Push subscription management for NOAH alerts.
+// Browser Web Push subscription management for ALERT alerts.
 // Talks to /api/push/*; the VAPID public key must be configured on the
 // backend or enableBrowserAlerts reports 'unconfigured'.
 

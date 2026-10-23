@@ -3,21 +3,21 @@ version: "3.9"
 services:
   backend:
     build: ./backend
-    container_name: noah-backend
+    container_name: alert-backend
     ports:
       - "8002:8002"
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - NOAH_TILE_CACHE_DIR=/data/tilecache
-      - NOAH_WEB_WORKERS=${NOAH_WEB_WORKERS:-1}
+      - ALERT_TILE_CACHE_DIR=/data/tilecache
+      - ALERT_WEB_WORKERS=${ALERT_WEB_WORKERS:-1}
       # Public-exposure hardening (all optional):
-      - NOAH_AUTH_TOKEN=${NOAH_AUTH_TOKEN:-}
-      - NOAH_TRUSTED_PROXIES=${NOAH_TRUSTED_PROXIES:-}
-      - NOAH_VAPID_PUBLIC_KEY=${NOAH_VAPID_PUBLIC_KEY:-}
-      - NOAH_VAPID_PRIVATE_KEY=${NOAH_VAPID_PRIVATE_KEY:-}
+      - ALERT_AUTH_TOKEN=${ALERT_AUTH_TOKEN:-}
+      - ALERT_TRUSTED_PROXIES=${ALERT_TRUSTED_PROXIES:-}
+      - ALERT_VAPID_PUBLIC_KEY=${ALERT_VAPID_PUBLIC_KEY:-}
+      - ALERT_VAPID_PRIVATE_KEY=${ALERT_VAPID_PRIVATE_KEY:-}
       # Set to a postgres DSN to switch the hazard store from SQLite
       # WAL to PostgreSQL/PostGIS (profile "postgis" provisions one).
-      - NOAH_DATABASE_URL=${NOAH_DATABASE_URL:-}
+      - ALERT_DATABASE_URL=${ALERT_DATABASE_URL:-}
     volumes:
       - tilecache:/data/tilecache
       - eqdata:/app/data
@@ -37,7 +37,7 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE: ""
-    container_name: noah-frontend
+    container_name: alert-frontend
     ports:
       - "3010:80"
     depends_on:
@@ -52,7 +52,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: noah-redis
+    container_name: alert-redis
     ports:
       - "6380:6379"
     command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
@@ -68,7 +68,7 @@ services:
   # ---- Observability (opt-in): docker compose --profile observability up
   prometheus:
     image: prom/prometheus:v2.55.1
-    container_name: noah-prometheus
+    container_name: alert-prometheus
     profiles: ["observability"]
     ports:
       - "9090:9090"
@@ -82,13 +82,13 @@ services:
 
   grafana:
     image: grafana/grafana:11.3.0
-    container_name: noah-grafana
+    container_name: alert-grafana
     profiles: ["observability"]
     ports:
       - "3300:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-noah-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-alert-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
@@ -101,22 +101,22 @@ services:
     restart: unless-stopped
 
   # ---- PostGIS backend (opt-in): docker compose --profile postgis up
-  # Then set NOAH_DATABASE_URL=postgresql://noah:noah@postgis:5432/noah
+  # Then set ALERT_DATABASE_URL=postgresql://alert:alert@postgis:5432/alert
   # and run backend/scripts/migrate_sqlite_to_pg.py once.
   postgis:
     image: postgis/postgis:16-3.5
-    container_name: noah-postgis
+    container_name: alert-postgis
     profiles: ["postgis"]
     ports:
       - "5433:5432"
     environment:
-      - POSTGRES_DB=noah
-      - POSTGRES_USER=noah
-      - POSTGRES_PASSWORD=noah
+      - POSTGRES_DB=alert
+      - POSTGRES_USER=alert
+      - POSTGRES_PASSWORD=alert
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U noah -d noah"]
+      test: ["CMD-SHELL", "pg_isready -U alert -d alert"]
       interval: 15s
       timeout: 3s
       retries: 5

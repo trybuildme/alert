@@ -71,7 +71,7 @@ test.beforeEach(async ({ page }) => {
 
 test('app shell loads with brand, topbar and layer panel', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.brand-name')).toHaveText('NOAH')
+  await expect(page.locator('.brand-name')).toHaveText('A.L.E.R.T')
   await expect(page.locator('.layer-panel')).toBeVisible()
   await expect(page.getByText('LAYERS')).toBeVisible()
 })
@@ -121,9 +121,9 @@ test('clicking an active volcano marker opens its detail popup', async ({ page }
   // (style load + visibility sync can take a few seconds).
   await page.waitForFunction(() => {
     const m = (window as unknown as {
-      __noah_map?: { isStyleLoaded: () => boolean;
+      __alert_map?: { isStyleLoaded: () => boolean;
         getLayer: (id: string) => { visibility?: string } | undefined }
-    }).__noah_map
+    }).__alert_map
     return !!m && m.isStyleLoaded() &&
       m.getLayer('volcano-circle')?.visibility === 'visible'
   }, undefined, { timeout: 45_000 })
@@ -132,15 +132,15 @@ test('clicking an active volcano marker opens its detail popup', async ({ page }
   // then project its summit inside the visible canvas.
   await page.evaluate(() => {
     const m = (window as unknown as {
-      __noah_map: { jumpTo: (o: object) => void }
-    }).__noah_map
+      __alert_map: { jumpTo: (o: object) => void }
+    }).__alert_map
     m.jumpTo({ center: [123.132, 10.4119], zoom: 11 })
   })
   await page.waitForTimeout(600)
   const pt = await page.evaluate(() => {
     const m = (window as unknown as {
-      __noah_map: { project: (ll: number[]) => { x: number; y: number } }
-    }).__noah_map
+      __alert_map: { project: (ll: number[]) => { x: number; y: number } }
+    }).__alert_map
     const p = m.project([123.132, 10.4119])
     return { x: p.x, y: p.y }
   })

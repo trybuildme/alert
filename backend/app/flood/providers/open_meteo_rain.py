@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-logger = logging.getLogger("noah.flood.openmeteo")
+logger = logging.getLogger("alert.flood.openmeteo")
 
 UPSTREAM = "https://api.open-meteo.com/v1/forecast"
 

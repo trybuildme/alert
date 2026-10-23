@@ -11,7 +11,7 @@ test('circle survives select and deselect clicks', async ({ page }) => {
     r.fulfill({ json: { source: 'unavailable', features: [] } }))
   await page.goto('/')
   await page.waitForFunction(() => {
-    const m = (window as unknown as { __noah_map?: { isStyleLoaded: () => boolean } }).__noah_map
+    const m = (window as unknown as { __alert_map?: { isStyleLoaded: () => boolean } }).__alert_map
     return !!m && m.isStyleLoaded()
   }, undefined, { timeout: 45_000 })
   page.on('pageerror', (err) => console.log('PAGEERROR:', err.message))
@@ -29,8 +29,8 @@ test('circle survives select and deselect clicks', async ({ page }) => {
   const snap = () => page.evaluate(() => ({
     drawnCount: document.querySelectorAll('.drawn-item').length,
     fillFeatures: (window as unknown as {
-      __noah_map: { querySourceFeatures: (id: string) => unknown[] }
-    }).__noah_map.querySourceFeatures('draw-fill').length,
+      __alert_map: { querySourceFeatures: (id: string) => unknown[] }
+    }).__alert_map.querySourceFeatures('draw-fill').length,
     selected: !!document.querySelector('.drawn-item.selected'),
   }))
 

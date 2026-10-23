@@ -1,4 +1,4 @@
-# Provisioned alert rules for NOAH (Grafana unified alerting).
+# Provisioned alert rules for ALERT (Grafana unified alerting).
 # Rules land in the UI with no notification channel attached by default —
 # wire contact points / policies in the UI (or add a contactPoints.yml)
 # to route them. Expressions target the auto-provisioned 'prometheus'
@@ -8,11 +8,11 @@ apiVersion: 1
 
 groups:
   - orgId: 1
-    name: noah-feed-health
-    folder: NOAH
+    name: alert-feed-health
+    folder: ALERT
     interval: 1m
     rules:
-      - uid: noah-provider-stale
+      - uid: alert-provider-stale
         title: Hazard feed stale (>1h since last success)
         condition: C
         for: 10m
@@ -27,7 +27,7 @@ groups:
             relativeTimeRange: { from: 600, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: time() - noah_provider_last_success_timestamp
+              expr: time() - alert_provider_last_success_timestamp
           - refId: B
             relativeTimeRange: { from: 600, to: 0 }
             datasourceUid: prometheus
@@ -39,12 +39,12 @@ groups:
               type: threshold
               expression: A > B
 
-      - uid: noah-backend-down
-        title: NOAH backend scrape failing
+      - uid: alert-backend-down
+        title: ALERT backend scrape failing
         condition: C
         for: 5m
         annotations:
-          summary: Prometheus cannot scrape the NOAH backend /metrics endpoint.
+          summary: Prometheus cannot scrape the ALERT backend /metrics endpoint.
         labels:
           severity: critical
         data:
@@ -52,7 +52,7 @@ groups:
             relativeTimeRange: { from: 600, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: up{job="noah-backend"}
+              expr: up{job="alert-backend"}
           - refId: B
             relativeTimeRange: { from: 600, to: 0 }
             datasourceUid: prometheus
@@ -64,7 +64,7 @@ groups:
               type: threshold
               expression: A < B
 
-      - uid: noah-cache-hitrate-low
+      - uid: alert-cache-hitrate-low
         title: Tile cache hit rate low (<30% over 30m)
         condition: C
         for: 30m
@@ -79,7 +79,7 @@ groups:
             relativeTimeRange: { from: 1800, to: 0 }
             datasourceUid: prometheus
             model:
-              expr: sum(rate(noah_cache_hits_total[10m])) / clamp_min(sum(rate(noah_cache_hits_total[10m])) + sum(rate(noah_cache_misses_total[10m])), 1e-9)
+              expr: sum(rate(alert_cache_hits_total[10m])) / clamp_min(sum(rate(alert_cache_hits_total[10m])) + sum(rate(alert_cache_misses_total[10m])), 1e-9)
           - refId: B
             relativeTimeRange: { from: 600, to: 0 }
             datasourceUid: prometheus

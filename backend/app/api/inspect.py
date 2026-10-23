@@ -87,7 +87,7 @@ async def inspect(
 ):
     meta = PRODUCTS.get(product, PRODUCTS["true-color"])
 
-    observation_time = time or (PRODUCTS[product].get("temporal_resolution") == "static"
+    observation_time = time or (meta.get("temporal_resolution") == "static"
                                 and "static" or None)
     data_age_min = None
     latest = None
@@ -140,7 +140,7 @@ async def inspect(
             "data_age_minutes": data_age_min,
             "data_source": ("NASA GIBS live Himawari-9 AHI (gibs.earthdata.nasa.gov)"
                             if meta.get("source") == "gibs" else
-                            "NOAH tile service (synthetic Himawari-class feed)"),
+                             "ALERT tile service (synthetic Himawari-class feed)"),
         },
         "agriculture": {
             "data_quality": "synthetic",
@@ -194,14 +194,14 @@ async def farms():
 
 @router.get("/weather-stations")
 async def weather_stations():
-    """Station names/locations are real PAGASA synoptic sites; the
-    readings next to them are simulated placeholders."""
+    """Station names/locations are real PAGASA synoptic sites.
+    For live rainfall data, use /api/flood/stations instead."""
     return {
         "type": "FeatureCollection",
-        "source": "static-station-list-simulated-readings",
-        "disclaimer": ("Real station locations; temperature/rainfall "
-                       "values are SIMULATED placeholders (no live "
-                       "observation feed yet)."),
+        "source": "static-station-locations-reference",
+        "disclaimer": ("Real PAGASA station locations for reference only. "
+                       "For live rainfall observations, use /api/flood/stations "
+                       "which provides REAL data from Open-Meteo + RainViewer."),
         "features": [
             {"type": "Feature",
              "properties": {"name": s["name"],

@@ -1,5 +1,5 @@
 """
-NOAH multi-resolution raster tile service.
+ALERT multi-resolution raster tile service.
 
 Architecture (requirement #2/#14):
 

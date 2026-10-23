@@ -1,5 +1,5 @@
 """
-NOAH backend entrypoint.
+ALERT backend entrypoint.
 
 FastAPI application serving:
   /tiles/{product}/{z}/{x}/{y}.png   XYZ raster tiles (multi-resolution pyramid)
@@ -8,6 +8,7 @@ FastAPI application serving:
   /api/layers                        layer registry
   /api/admin/*                       PH administrative boundaries (GeoJSON)
   /api/inspect                       click-to-inspect analytics
+  /api/buildings                     3D building footprints (Luzon)
   /health                            service + cache status
 """
 
@@ -21,10 +22,11 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
-from app.api import (admin_boundaries, cyclone_forecast, cyclones,
+from app.api import (admin_boundaries, buildings, cyclone_forecast, cyclones,
                      elevation, earthquakes, esri_proxy, flood as flood_api,
                      gibs_proxy, health, inspect, metadata, metrics,
-                     osm_features, push, search, tiles, tsunamis, volcanoes)
+                     osm_features, push, search, tiles, terrain_proxy,
+                     tsunamis, volcanoes)
 from app.cache.redis_cache import TileCache
 from app.core.auth import AuthMiddleware
 from app.core.config import settings
@@ -38,6 +40,8 @@ from app.hazards.providers.usgs import UsgsProvider
 from app.hazards.base import EventBus
 from app.flood.ingest import FloodIngestWorker
 from app.flood.providers.open_meteo_rain import OpenMeteoRainProvider
+from app.flood.providers.open_meteo_realtime import OpenMeteoRealtimeProvider
+from app.flood.providers.rainviewer import RainViewerProvider
 from app.flood.providers.pagasa_water import PagasaWaterLevelProvider
 from app.flood.stations import registry as flood_station_registry
 from app.flood.store import FloodStore
@@ -57,7 +61,7 @@ def parse_bbox(raw: str) -> tuple | None:
         return None
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("noah")
+logger = logging.getLogger("alert")
 
 
 @asynccontextmanager
@@ -71,7 +75,7 @@ async def lifespan(application: FastAPI):
         bus = EventBus()
         providers = [UsgsProvider(bbox=parse_bbox(settings.EARTHQUAKE_BBOX)),
                      PhivolcsProvider()]
-        reference = (settings.NOAH_EQ_REF_LAT, settings.NOAH_EQ_REF_LON)
+        reference = (settings.EQ_REF_LAT, settings.EQ_REF_LON)
         dispatcher = NotificationDispatcher()
         dispatcher.register("dashboard", lambda payload: None)
         # Optional delivery channels (docs/earthquake/ALERTS.md)
@@ -108,7 +112,7 @@ async def lifespan(application: FastAPI):
         application.state.earthquakes = {
             "store": store, "bus": bus, "worker": worker,
             "reference_point": reference,
-            "reference_radius_km": settings.NOAH_EQ_REF_RADIUS_KM,
+            "reference_radius_km": settings.EQ_REF_RADIUS_KM,
             "enabled": True,
         }
         worker.start()
@@ -130,7 +134,7 @@ async def lifespan(application: FastAPI):
 
         retention_task = asyncio.create_task(retention_loop())
 
-    # --- Flood monitoring module ---
+    # --- Flood monitoring module (real-time) ---
     flood_retention_task = None
     if settings.FLOOD_ENABLED:
         flood_store = FloodStore(settings.FLOOD_DB_PATH)
@@ -139,25 +143,66 @@ async def lifespan(application: FastAPI):
                          if s["kind"] == "rainfall"]
         water_stations = [s for s in flood_station_registry()
                           if s["kind"] == "water_level"]
+        # Real-time providers: Open-Meteo + RainViewer radar
         flood_providers = [
             OpenMeteoRainProvider(rain_stations),
+            OpenMeteoRealtimeProvider(rain_stations),
+            RainViewerProvider(rain_stations),
             PagasaWaterLevelProvider(water_stations,
-                                     settings.NOAH_FLOOD_PAGASA_URL),
+                                     settings.FLOOD_PAGASA_URL),
         ]
         from app.core.config import settings as _s  # local alias
+
+        # Real-time flood event bus for SSE push
+        flood_event_queue: asyncio.Queue = asyncio.Queue()
 
         async def on_flood_alert(alert):
             # Reuse the earthquake notification channels: same dispatcher
             # semantics, flood payload shape.
-            decision = {"severity": alert["level"],
-                        "rule_name": f"flood:{alert['station_id']}"}
-            event = {
-                "summary": (f"Flood {alert['level']} · {alert['station_name']}: "
-                            f"{alert['reason']}"),
-                "event_uid": alert["id"],
+            # Map flood level to severity for dispatcher compatibility
+            from app.hazards.alerts import AlertDecision
+            from app.hazards.base import HazardEvent
+            from datetime import datetime, timezone
+
+            level_to_severity = {
+                "NORMAL": "LOW",
+                "ADVISORY": "MODERATE",
+                "WATCH": "MODERATE",
+                "WARNING": "HIGH",
+                "CRITICAL": "CRITICAL",
             }
+            severity = level_to_severity.get(alert["level"], "MODERATE")
+            decision = AlertDecision(
+                severity=severity,
+                rule_name=f"flood:{alert['station_id']}",
+                summary=f"Flood {alert['level']} · {alert['station_name']}: {alert['reason']}",
+                event_uid=alert["id"],
+            )
+            event = HazardEvent(
+                provider="flood",
+                provider_event_id=alert["id"],
+                origin_time=datetime.now(timezone.utc),
+                latitude=alert.get("lat") or 0.0,
+                longitude=alert.get("lon") or 0.0,
+                magnitude=None,
+                depth_km=None,
+                place=alert.get("station_name", ""),
+                region=None,
+                raw_data={"alert": alert},
+            )
             await flood_dispatcher.dispatch(decision, event,
                                             flood_bus.publish)
+            # Push to real-time SSE queue
+            await flood_event_queue.put({
+                "type": "alert",
+                "station_id": alert["station_id"],
+                "station_name": alert["station_name"],
+                "level": alert["level"],
+                "reason": alert["reason"],
+                "lat": alert.get("lat"),
+                "lon": alert.get("lon"),
+                "timestamp": alert.get("created_at"),
+            })
 
         flood_bus = EventBus()
         flood_dispatcher = NotificationDispatcher()
@@ -174,19 +219,21 @@ async def lifespan(application: FastAPI):
                 flood_store, settings.VAPID_PRIVATE_KEY,
                 settings.VAPID_PUBLIC_KEY, settings.VAPID_SUBJECT))
 
+        # Real-time poll interval: 5 minutes (300s) for near-real-time
+        flood_poll_interval = min(settings.FLOOD_POLL_INTERVAL, 300)
         flood_worker = FloodIngestWorker(
             flood_providers, flood_store,
             thresholds_path=settings.FLOOD_THRESHOLDS_PATH,
-            poll_interval=settings.FLOOD_POLL_INTERVAL,
+            poll_interval=flood_poll_interval,
             alert_enabled=settings.FLOOD_ALERT_ENABLED,
             on_alert=on_flood_alert)
         application.state.flood = {
             "store": flood_store, "bus": flood_bus, "worker": flood_worker,
-            "enabled": True,
+            "enabled": True, "event_queue": flood_event_queue,
         }
         flood_worker.start()
-        logger.info("flood module enabled (%d stations, poll every %ss)",
-                    len(flood_station_registry()), settings.FLOOD_POLL_INTERVAL)
+        logger.info("flood module enabled (%d stations, poll every %ss, real-time)",
+                    len(flood_station_registry()), flood_poll_interval)
 
         async def flood_retention_loop():
             while True:
@@ -234,6 +281,7 @@ cache = TileCache()
 app.state.cache = cache
 app.state.tiles = TileService(cache=cache)
 
+app.include_router(terrain_proxy.router)
 app.include_router(tiles.router)
 app.include_router(esri_proxy.router)
 app.include_router(metadata.router)
@@ -247,6 +295,7 @@ app.include_router(earthquakes.router)
 app.include_router(push.router)
 app.include_router(tsunamis.router)
 app.include_router(volcanoes.router)
+app.include_router(buildings.router)
 app.include_router(flood_api.router)
 app.include_router(elevation.router)
 app.include_router(health.router)

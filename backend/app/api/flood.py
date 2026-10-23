@@ -1,16 +1,19 @@
 """Flood Monitoring API.
 
 All endpoints are health-tier (no auth, no rate limit) matching
-NOAH's other public read surfaces — the module exposes no write path;
+ALERT's other public read surfaces — the module exposes no write path;
 observations arrive exclusively through the authenticated server-side
 ingest worker.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 
 from app.flood.stations import registry as station_registry
 
@@ -95,10 +98,10 @@ async def stations(request: Request,
     return {
         "type": "FeatureCollection",
         "features": features,
-        "source": "noah-flood-monitoring",
+        "source": "alert-flood-monitoring",
         "generated_at": _iso_now(),
         "disclaimer": (
-            "Rainfall values are REAL model data via Open-Meteo. "
+            "Rainfall values are REAL model data via Open-Meteo + RainViewer. "
             "Water-level gauges report offline until an authorized "
             "PAGASA/DENR feed exists — no values are fabricated."),
     }
@@ -167,7 +170,7 @@ async def status(request: Request) -> dict:
             for a in alerts],
         "worker_health": st["worker"].health() if st.get("worker") else None,
         "generated_at": _iso_now(),
-        "basis_note": ("Levels are NOAH's automated classification of "
+        "basis_note": ("Levels are ALERT's automated classification of "
                        "OBSERVED rainfall data — forecasts and official "
                        "PAGASA warnings are separate things."),
     }
@@ -185,3 +188,49 @@ async def alerts(request: Request,
                      "created_at", "resolved_at")} for a in recent],
         "active_count": len(st["store"].active_alerts()),
     }
+
+
+@router.get("/stream")
+async def flood_stream(request: Request):
+    """SSE endpoint for real-time flood updates.
+
+    Pushes new observations and alerts as they arrive from the
+    real-time ingest worker.
+    """
+    st = _state(request)
+    event_queue = st.get("event_queue")
+    if not event_queue:
+        raise HTTPException(status_code=503,
+                            detail="real-time stream not available")
+
+    async def event_generator():
+        # Send initial heartbeat
+        yield f"data: {json.dumps({'type': 'connected', 'timestamp': _iso_now()})}\n\n"
+
+        while True:
+            try:
+                # Wait for new event with timeout for heartbeat
+                try:
+                    event = await asyncio.wait_for(
+                        event_queue.get(),
+                        timeout=30.0
+                    )
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    # Send heartbeat to keep connection alive
+                    yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': _iso_now()})}\n\n"
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+                break
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )

@@ -1,4 +1,4 @@
-# Auto-provisioned datasource: the Prometheus instance scraping NOAH's
+# Auto-provisioned datasource: the Prometheus instance scraping ALERT's
 # /metrics endpoint (see ../../prometheus/prometheus.yml).
 apiVersion: 1
 

@@ -1,4 +1,4 @@
-// MapLibre style construction: sources and layers for every NOAH overlay.
+// MapLibre style construction: sources and layers for every ALERT overlay.
 // Pure data — no map instance required. Layer order here defines paint
 // order: basemaps at the bottom, satellite rasters above, then cloud
 // canopy, vector themes, admin boundaries, drawing tools on top.
@@ -54,7 +54,7 @@ export function buildStyle() {
     tiles: ['/tiles/elevation/{z}/{x}/{y}.png'],
     tileSize: 256,
     maxzoom: 18,
-    attribution: 'NOAH synthetic DEM',
+    attribution: 'ALERT synthetic DEM',
   }
   layers.push({
     id: 'elevation',
@@ -64,6 +64,18 @@ export function buildStyle() {
     paint: { 'raster-opacity': 0.85 },
   })
 
+  // --- 3D Terrain DEM (proxied from backend — avoids CORS) ---
+  // NOTE: MapLibre GL JS v5 removed `maxNativeZoom` from source specs;
+  // use `maxzoom` (= native max) and the engine overzooms automatically.
+  sources['terrain-dem'] = {
+    type: 'raster-dem',
+    tiles: ['/tiles/terrain/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    maxzoom: 14,
+    encoding: 'terrarium',
+    attribution: 'AWS Terrain Tiles, Mapzen Terrarium',
+  } as unknown as maplibregl.RasterDEMSourceSpecification
+
   // --- Cyclone clouds (live Himawari-9 Clean IR, latest frame) ---
   // Sits above basemap/satellite rasters but below all vector overlays so
   // tracks, extents and labels stay readable over the cloud canopy.
@@ -71,15 +83,33 @@ export function buildStyle() {
     type: 'raster',
     tiles: ['/tiles/himawari-clean-ir/{z}/{x}/{y}.png'],
     tileSize: 256,
-    maxzoom: 6,
+    maxzoom: 22,
+    maxNativeZoom: 6,
     attribution: 'NASA GIBS / JMA Himawari-9 AHI B13',
-  }
+  } as unknown as maplibregl.RasterSourceSpecification
   layers.push({
     id: 'cyclone-clouds-raster',
     type: 'raster',
     source: 'cyclone-clouds',
     layout: { visibility: 'none' },
     paint: { 'raster-opacity': 0.7, 'raster-fade-duration': 300 },
+  } as unknown as maplibregl.RasterLayerSpecification)
+
+  // --- Rain radar (RainViewer global composite, auto-refreshed) ---
+  sources['rain-radar'] = {
+    type: 'raster',
+    tiles: [],  // populated by useRainRadarRefresh on first frame fetch
+    tileSize: 256,
+    maxzoom: 22,
+    maxNativeZoom: 8,
+    attribution: 'RainViewer · PAGASA / DOST',
+  } as unknown as maplibregl.RasterSourceSpecification
+  layers.push({
+    id: 'rain-radar-raster',
+    type: 'raster',
+    source: 'rain-radar',
+    layout: { visibility: 'none' },
+    paint: { 'raster-opacity': 0.65, 'raster-fade-duration': 0 },
   } as unknown as maplibregl.RasterLayerSpecification)
 
   // --- Philippine Area of Responsibility (official PAGASA polygon) ---
@@ -182,7 +212,7 @@ export function buildStyle() {
         visibility: 'none',
         'text-field': ['get', 'name'],
         'text-size': ['interpolate', ['linear'], ['zoom'], 3, 12, 8, 14.5, 13, 17],
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-letter-spacing': 0.08,
         'text-offset': [0, -1.4],
         'text-anchor': 'bottom',
@@ -203,7 +233,7 @@ export function buildStyle() {
         visibility: 'none',
         'text-field': ['get', 'name'],
         'text-size': ['interpolate', ['linear'], ['zoom'], 6, 10.5, 11, 13, 15, 15],
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-letter-spacing': 0.05,
         'text-offset': [0, -1.35],
         'text-anchor': 'bottom',
@@ -242,7 +272,7 @@ export function buildStyle() {
   // --- Thematic GeoJSON placeholders (data loaded post-style) ---
   const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
   ;['flood-risk', 'rainfall', 'alerts', 'farms', 'weather-stations', 'cyclones',
-    'cyclones-fcst', 'earthquakes', 'tsunamis', 'volcanoes',
+    'cyclones-fcst', 'earthquakes', 'tsunamis', 'volcanoes', 'buildings',
     'flood-rain-stations', 'flood-water-stations', 'flood-alerts',
     // roads/waterways/places: geometry lazy-loaded per viewport on moveend
     'roads', 'roads-minor', 'waterways', 'places'].forEach((id) => {
@@ -394,7 +424,7 @@ export function buildStyle() {
         // PAGASA local name leads once the storm is inside the PAR
         'text-field': ['coalesce', ['get', 'display_name'], ['get', 'name']],
         'text-size': 11,
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.8],
         'text-anchor': 'top',
         'text-transform': 'uppercase',
@@ -474,7 +504,7 @@ export function buildStyle() {
         visibility: 'none',
         'text-field': ['get', 'label'],
         'text-size': 9.5,
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.6],
         'text-anchor': 'top',
         'text-transform': 'uppercase',
@@ -532,7 +562,7 @@ export function buildStyle() {
           ['concat', 'M ', ['to-string', ['get', 'magnitude']]],
           'M ?'],
         'text-size': ['interpolate', ['linear'], ['zoom'], 3, 9.5, 7, 11.5, 12, 13],
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-offset': [0, -1.15],
         'text-anchor': 'bottom',
         'text-letter-spacing': 0.04,
@@ -567,7 +597,7 @@ export function buildStyle() {
         visibility: 'none',
         'text-field': ['get', 'title'],
         'text-size': 10,
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.4],
         'text-anchor': 'top',
       },
@@ -600,7 +630,7 @@ export function buildStyle() {
         visibility: 'none',
         'text-field': ['get', 'name'],
         'text-size': 10,
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-offset': [0, -1.3],
         'text-anchor': 'bottom',
       },
@@ -636,7 +666,7 @@ export function buildStyle() {
         visibility: 'none',
         'text-field': ['concat', ['get', 'mmhLabel'], ' mm/h'],
         'text-size': 9,
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.3],
         'text-anchor': 'top',
       },
@@ -711,7 +741,7 @@ export function buildStyle() {
         visibility: 'none',
         'text-field': ['get', 'name'],
         'text-size': 11,
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-offset': [0, 1.2],
         'text-anchor': 'top',
       },
@@ -776,7 +806,7 @@ export function buildStyle() {
         visibility: 'visible',
         'text-field': ['get', 'name'],
         'text-size': size,
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Open Sans Bold'],
         'text-allow-overlap': false,
       },
       paint: { 'text-color': color, 'text-halo-color': '#0a0e17', 'text-halo-width': 2 },
@@ -788,6 +818,41 @@ export function buildStyle() {
   sources['draw-line'] = { type: 'geojson', data: empty }
   sources['draw-point'] = { type: 'geojson', data: empty }
   sources['draw-sketch'] = { type: 'geojson', data: empty }
+
+  // --- 3D Buildings · Luzon: fill-extrusion must sit above all 2D layers ---
+  layers.push(
+    {
+      id: 'buildings-fill',
+      type: 'fill-extrusion',
+      source: 'buildings',
+      minzoom: 8,
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-extrusion-height': ['get', 'height'],
+        'fill-extrusion-base': 0,
+        'fill-extrusion-color': [
+          'step', ['get', 'height'],
+          '#94a3b8', 20,
+          '#60a5fa', 50,
+          '#8b5cf6', 100,
+          '#f43f5e',
+        ],
+        'fill-extrusion-opacity': 0.8,
+      },
+    } as unknown as maplibregl.FillExtrusionLayerSpecification,
+    {
+      id: 'buildings-line',
+      type: 'line',
+      source: 'buildings',
+      minzoom: 10,
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#e2e8f0',
+        'line-width': 0.5,
+        'line-opacity': 0.4,
+      },
+    } as unknown as maplibregl.LineLayerSpecification,
+  )
 
   layers.push(
     {
@@ -836,8 +901,8 @@ export function buildStyle() {
   return {
     style: {
       version: 8,
-      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-      sprite: 'https://demotiles.maplibre.org/sprite/sprite',
+      glyphs: 'https://tiles.basemaps.cartocdn.com/fonts/{fontstack}/{range}.pbf',
+      sprite: 'https://tiles.basemaps.cartocdn.com/gl/positron-gl-style/sprite',
       sources,
       layers,
     } as maplibregl.StyleSpecification,

@@ -17,7 +17,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-logger = logging.getLogger("noah.hazards")
+logger = logging.getLogger("alert.hazards")
 
 SEVERITIES = ("INFO", "LOW", "MODERATE", "HIGH", "CRITICAL")
 

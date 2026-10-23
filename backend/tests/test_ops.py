@@ -36,8 +36,8 @@ def test_metrics_endpoint_prometheus_format(client):
 
 def test_metrics_exposes_cache_counters(client):
     r = client.get("/metrics")
-    assert "noah_cache_hits_total" in r.text
-    assert "noah_cache_misses_total" in r.text
+    assert "alert_cache_hits_total" in r.text
+    assert "alert_cache_misses_total" in r.text
 
 
 def test_metrics_exposes_ingest_and_store_when_eq_enabled(client):
@@ -45,9 +45,9 @@ def test_metrics_exposes_ingest_and_store_when_eq_enabled(client):
     if 'provider=' in r.text:
         # Worker has not polled in tests (network blocked), so counters
         # exist but latency/success gauges may not have fired yet.
-        assert "# TYPE noah_provider_received_total counter" in r.text
-    assert "noah_earthquake_events_stored" in r.text
-    assert "noah_stream_clients" in r.text
+        assert "# TYPE alert_provider_received_total counter" in r.text
+    assert "alert_earthquake_events_stored" in r.text
+    assert "alert_stream_clients" in r.text
 
 
 # ---- alert retention ------------------------------------------------------------
@@ -118,7 +118,7 @@ def run(coro):
 
 
 def test_email_channel_builds_message():
-    channel = EmailChannel("smtp.example", 587, "noah@example",
+    channel = EmailChannel("smtp.example", 587, "alert@example",
                            "secret", "alerts@example",
                            ["a@example", "b@example"])
     msg = channel._build_message({

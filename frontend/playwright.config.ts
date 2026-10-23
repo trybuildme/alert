@@ -1,4 +1,4 @@
-// Playwright configuration for NOAH end-to-end tests.
+// Playwright configuration for ALERT end-to-end tests.
 //
 // Strategy: run the real Vite dev server, then intercept every backend
 // touchpoint (/api/**, /tiles) with page.route fixtures. This keeps E2E

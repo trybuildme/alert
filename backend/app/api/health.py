@@ -8,7 +8,7 @@ async def health(request: Request):
     cache = getattr(request.app.state, "cache", None)
     return {
         "status": "ok",
-        "service": "NOAH",
+        "service": "ALERT",
         "version": "1.0.0",
         "cache": {
             "memory_items": len(cache.memory._store) if cache else 0,

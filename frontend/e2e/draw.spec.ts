@@ -8,7 +8,7 @@ test('line A->B opens the elevation profile popup', async ({ page }) => {
   await mockBackend(page)
   await page.goto('/')
   await page.waitForFunction(() => {
-    const m = (window as unknown as { __noah_map?: { isStyleLoaded: () => boolean } }).__noah_map
+    const m = (window as unknown as { __alert_map?: { isStyleLoaded: () => boolean } }).__alert_map
     return !!m && m.isStyleLoaded()
   }, undefined, { timeout: 45_000 })
   await page.waitForTimeout(500)

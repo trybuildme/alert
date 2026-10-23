@@ -29,9 +29,11 @@ const LAYER_IDS: Record<string, string[]> = {
   ],
   'cyclone-forecast': ['cyclone-fcst-line', 'cyclone-fcst-circle', 'cyclone-fcst-label'],
   'cyclone-clouds': ['cyclone-clouds-raster'],
+  'rain-radar': ['rain-radar-raster'],
   earthquakes: ['eq-circle', 'eq-selected', 'eq-label'],
   tsunamis: ['tsunami-circle', 'tsunami-label'],
   volcanoes: ['volcano-circle', 'volcano-label'],
+  'buildings-3d': ['buildings-fill', 'buildings-line'],
   par: ['par-line'],
 }
 

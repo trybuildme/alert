@@ -1,6 +1,6 @@
-# NOAH
+# ALERT
 
-**Nationwide Operational Assessment of Hazards — Google Maps / Google Earth-style usability
+**Atmospheric & Landscape Emergency Response Tracker — Google Maps / Google Earth-style usability
 with scientifically honest satellite data reporting.**
 
 The map is the primary interface: a large, continuously zoomable MapLibre GL map with
@@ -144,7 +144,7 @@ name (`BASYANG (INTERNATIONAL)`) once assigned.
 The four `· Live` products are proxied through
 `/tiles/{product}/{z}/{x}/{y}.png` from
 `gibs.earthdata.nasa.gov` WMTS (EPSG:3857, 10-minute time dimension,
-rolling ~23-day window). Every tile carries an `X-Noah-Source` header:
+rolling ~23-day window). Every tile carries an `X-Alert-Source` header:
 
 | Source | Meaning |
 |--------|---------|
@@ -174,7 +174,7 @@ No artificial detail is implied by digital zoom.
 
 Esri World Imagery answers HTTP 200 with a baked-in placeholder JPEG
 ("Map data not yet available.") wherever coverage ends — typically z17–18 in rural
-areas. NOAH proxies Esri tiles through `/tiles/esri/{z}/{x}/{y}.jpg`:
+areas. ALERT proxies Esri tiles through `/tiles/esri/{z}/{x}/{y}.jpg`:
 
 1. Each tile is fetched once, analyzed (tiny + near-uniform bright pixels = placeholder),
    and cached — real imagery **and** "empty" verdicts alike.

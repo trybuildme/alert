@@ -1,7 +1,7 @@
 {
-  "title": "NOAH · Hazard Platform",
-  "uid": "noah-overview",
-  "tags": ["noah"],
+  "title": "ALERT · Hazard Platform",
+  "uid": "alert-overview",
+  "tags": ["alert"],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -36,7 +36,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(noah_cache_hits_total[5m])) / clamp_min(sum(rate(noah_cache_hits_total[5m])) + sum(rate(noah_cache_misses_total[5m])), 1e-9)",
+          "expr": "sum(rate(alert_cache_hits_total[5m])) / clamp_min(sum(rate(alert_cache_hits_total[5m])) + sum(rate(alert_cache_misses_total[5m])), 1e-9)",
           "legendFormat": "hit rate"
         }
       ]
@@ -56,7 +56,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (provider) (rate(noah_provider_accepted_total[5m]))",
+          "expr": "sum by (provider) (rate(alert_provider_accepted_total[5m]))",
           "legendFormat": "{{provider}}"
         }
       ]
@@ -71,7 +71,7 @@
       "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
       "targets": [
-        { "refId": "A", "expr": "noah_stream_clients", "legendFormat": "clients" }
+        { "refId": "A", "expr": "alert_stream_clients", "legendFormat": "clients" }
       ]
     },
     {
@@ -84,7 +84,7 @@
       "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
       "targets": [
-        { "refId": "A", "expr": "noah_earthquake_events_stored", "legendFormat": "events" }
+        { "refId": "A", "expr": "alert_earthquake_events_stored", "legendFormat": "events" }
       ]
     },
     {
@@ -113,7 +113,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "time() - noah_provider_last_success_timestamp",
+          "expr": "time() - alert_provider_last_success_timestamp",
           "legendFormat": "{{provider}}"
         }
       ]
@@ -130,7 +130,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "noah_provider_last_latency_ms",
+          "expr": "alert_provider_last_latency_ms",
           "legendFormat": "{{provider}}"
         }
       ]
@@ -147,12 +147,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (provider) (rate(noah_provider_rejected_total[5m]))",
+          "expr": "sum by (provider) (rate(alert_provider_rejected_total[5m]))",
           "legendFormat": "rejected {{provider}}"
         },
         {
           "refId": "B",
-          "expr": "sum by (provider) (rate(noah_provider_duplicates_total[5m]))",
+          "expr": "sum by (provider) (rate(alert_provider_duplicates_total[5m]))",
           "legendFormat": "dupes {{provider}}"
         }
       ]

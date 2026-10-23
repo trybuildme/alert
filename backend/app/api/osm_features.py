@@ -122,7 +122,7 @@ async def _fetch_overpass(query: str) -> dict | None:
             # bare python-httpx default agent.
             _client = httpx.AsyncClient(
                 timeout=120,
-                headers={"User-Agent": "NOAH/1.0 (local hazard dashboard)"})
+                headers={"User-Agent": "ALERT/1.0 (local hazard dashboard)"})
         resp = await _client.post(_OVERPASS_URL, content=query,
                                   headers={"Content-Type": "text/plain"})
         # Overpass rate-limits bursts of viewport fetches (429); back

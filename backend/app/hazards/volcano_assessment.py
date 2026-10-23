@@ -1,4 +1,4 @@
-"""Volcano activity assessment — NOAH's automated synthesis.
+"""Volcano activity assessment — ALERT's automated synthesis.
 
 Combines two independent signals:
 
@@ -59,7 +59,7 @@ METHODOLOGY = (
 )
 
 DISCLAIMER = (
-    "NOAH assessment — not an official PHIVOLCS Alert Level. Current "
+    "ALERT assessment — not an official PHIVOLCS Alert Level. Current "
     "official status exclusively via PHIVOLCS bulletins."
 )
 

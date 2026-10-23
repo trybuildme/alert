@@ -106,7 +106,7 @@ export default function NotificationBell() {
                 }}
                 title={push.enabled
                   ? 'Subscribed — click to stop browser notifications'
-                  : 'Get OS notifications for hazard alerts even when NOAH is closed'}
+                  : 'Get OS notifications for hazard alerts even when ALERT is closed'}
               >
                 {pushBusy ? '…' : push.enabled ? 'ON' : 'OFF'}
               </button>

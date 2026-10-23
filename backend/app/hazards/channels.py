@@ -20,7 +20,7 @@ from email.message import EmailMessage
 
 import httpx
 
-logger = logging.getLogger("noah.hazards.channels")
+logger = logging.getLogger("alert.hazards.channels")
 
 
 class EmailChannel:
@@ -35,12 +35,12 @@ class EmailChannel:
 
     def _build_message(self, payload: dict) -> EmailMessage:
         msg = EmailMessage()
-        msg["Subject"] = f"[NOAH {payload.get('severity', 'INFO')}] {payload.get('summary', 'hazard alert')}"
+        msg["Subject"] = f"[ALERT {payload.get('severity', 'INFO')}] {payload.get('summary', 'hazard alert')}"
         msg["From"] = self._from
         msg["To"] = ", ".join(self._to)
         body = "\n".join(
             f"{key}: {value}" for key, value in sorted(payload.items()))
-        msg.set_content(body + "\n\n— NOAH hazard monitor\n")
+        msg.set_content(body + "\n\n— ALERT hazard monitor\n")
         return msg
 
     def _send_sync(self, payload: dict) -> None:

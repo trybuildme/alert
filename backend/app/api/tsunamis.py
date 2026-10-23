@@ -24,7 +24,7 @@ import httpx
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-logger = logging.getLogger("noah.tsunamis")
+logger = logging.getLogger("alert.tsunamis")
 
 FEED_URL = "https://www.tsunami.gov/events/xml/PAAQAtom.xml"
 CACHE_TTL_S = 120

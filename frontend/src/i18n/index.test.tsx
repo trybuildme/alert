@@ -35,7 +35,7 @@ describe('i18n', () => {
     expect(screen.getByTestId('lang')).toHaveTextContent('fil')
     expect(screen.getByTestId('known')).toHaveTextContent(
       DICT['layers.title'].fil)
-    expect(localStorage.getItem('noah.lang')).toBe('fil')
+    expect(localStorage.getItem('alert.lang')).toBe('fil')
     first.unmount()
 
     // A fresh provider hydrates the persisted choice.

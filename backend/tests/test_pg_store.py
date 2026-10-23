@@ -25,8 +25,8 @@ from app.hazards.store import EarthquakeStore
 # --- factory ------------------------------------------------------------
 
 def test_is_postgres_dsn():
-    assert is_postgres_dsn("postgresql://u:p@h:5432/noah")
-    assert is_postgres_dsn("postgres://u:p@h/noah")
+    assert is_postgres_dsn("postgresql://u:p@h:5432/alert")
+    assert is_postgres_dsn("postgres://u:p@h/alert")
     assert is_postgres_dsn("  POSTGRESQL://u:p@h  ")
     assert not is_postgres_dsn("mysql://x/y")
     assert not is_postgres_dsn("")

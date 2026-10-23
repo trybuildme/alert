@@ -10,7 +10,7 @@ This stub implements the FloodProvider protocol and reports zero
 observations while disabled. When an authorized endpoint exists
 (direct feed, DENR-RBDCC partnership, LGU sensor gateway):
 
-    1. set `enabled = True` / wire NOAH_FLOOD_PAGASA_URL env
+    1. set `enabled = True` / wire FLOOD_PAGASA_URL env
     2. implement fetch() against the real schema
     3. normalize to {'metric': 'water_level_m', ...} — everything
        downstream (validation, dedup, thresholds, alerts, GIS)
@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger("noah.flood.pagasa")
+logger = logging.getLogger("alert.flood.pagasa")
 
 
 class PagasaWaterLevelProvider:

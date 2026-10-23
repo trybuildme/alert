@@ -39,7 +39,7 @@ const DETAIL = {
                     radius_km: 30, window_days: 7 },
     },
     methodology: 'Automated synthesis — NOT the official PHIVOLCS Alert Level.',
-    disclaimer: 'NOAH assessment — not an official PHIVOLCS Alert Level.',
+    disclaimer: 'ALERT assessment — not an official PHIVOLCS Alert Level.',
   },
 }
 

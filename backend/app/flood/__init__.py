@@ -1,4 +1,4 @@
-"""NOAH Flood Monitoring module.
+"""ALERT Flood Monitoring module.
 
 Mirrors the earthquake (hazards) module architecture:
   store.py      SQLite WAL persistence (PostGIS-shaped schema)

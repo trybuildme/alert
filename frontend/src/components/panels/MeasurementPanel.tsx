@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useDrawingStore, useInspectStore, useMapStore } from '../../stores'
+import { useDrawingStore, useInspectStore, useMapStore, useUIStore } from '../../stores'
 import type { DrawTool, InspectData } from '../../stores'
 import { measurementFor } from '../../hooks/useDrawing'
 
@@ -118,6 +118,15 @@ export default function MeasurementPanel() {
             </>
           )}
         </div>
+      )}
+
+      {selected && selected.tool !== 'point' && selected.tool !== 'line' && (
+        <button
+          className="mini-btn export-btn"
+          onClick={() => useUIStore.getState().toggleScreenshotPanel()}
+        >
+          Export Screenshot
+        </button>
       )}
     </div>
   )

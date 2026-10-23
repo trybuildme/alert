@@ -1,4 +1,4 @@
-// NOAH service worker: Web Push delivery, notification focus routing,
+// ALERT service worker: Web Push delivery, notification focus routing,
 // and offline support.
 //
 // Offline strategy:
@@ -18,10 +18,10 @@
 // Registration is unconditional at app boot (main.tsx); push opt-in is
 // a separate concern handled by lib/pushClient.
 
-const SHELL_CACHE = 'noah-shell-v1'
-const ASSET_CACHE = 'noah-assets-v1'
-const TILE_CACHE = 'noah-tiles-v1'
-const API_CACHE = 'noah-api-v1'
+const SHELL_CACHE = 'alert-shell-v1'
+const ASSET_CACHE = 'alert-assets-v1'
+const TILE_CACHE = 'alert-tiles-v1'
+const API_CACHE = 'alert-api-v1'
 const MAX_TILES = 400
 const MAX_API_ENTRIES = 60
 
@@ -39,7 +39,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const names = await caches.keys()
     await Promise.all(
-      names.filter((n) => n.startsWith('noah-') &&
+      names.filter((n) => n.startsWith('alert-') &&
         ![SHELL_CACHE, ASSET_CACHE, TILE_CACHE, API_CACHE].includes(n))
         .map((n) => caches.delete(n)))
     await self.clients.claim()
@@ -115,12 +115,12 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {}
   } catch {
-    data = { title: 'NOAH alert', body: event.data ? event.data.text() : '' }
+    data = { title: 'ALERT alert', body: event.data ? event.data.text() : '' }
   }
   const severity = data.severity || 'INFO'
-  event.waitUntil(self.registration.showNotification(data.title || `NOAH ${severity} hazard alert`, {
+  event.waitUntil(self.registration.showNotification(data.title || `ALERT ${severity} hazard alert`, {
     body: data.summary || data.body || '',
-    tag: data.event_uid || 'noah-alert',
+    tag: data.event_uid || 'alert-alert',
     renotify: true,
     requireInteraction: severity === 'CRITICAL' || severity === 'HIGH',
     icon: '/favicon.svg',

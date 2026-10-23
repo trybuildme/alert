@@ -1,4 +1,4 @@
-"""NOAH real-time hazard intelligence package.
+"""ALERT real-time hazard intelligence package.
 
 The earthquake module is the first citizen; floods, typhoons,
 landslides, volcanic activity etc. should reuse:

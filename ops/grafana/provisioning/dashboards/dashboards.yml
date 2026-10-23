@@ -2,9 +2,9 @@
 apiVersion: 1
 
 providers:
-  - name: noah
+  - name: alert
     orgId: 1
-    folder: NOAH
+    folder: ALERT
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

@@ -18,7 +18,7 @@ const renderPanel = () =>
   render(<I18nProvider><LayerPanel /></I18nProvider>)
 
 function renderInLang(lang: 'en' | 'fil') {
-  localStorage.setItem('noah.lang', lang)
+  localStorage.setItem('alert.lang', lang)
   return render(<I18nProvider><LayerPanel /></I18nProvider>)
 }
 

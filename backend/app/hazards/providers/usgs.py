@@ -20,7 +20,7 @@ import httpx
 
 from app.hazards.base import HazardEvent, HazardProvider
 
-logger = logging.getLogger("noah.hazards.usgs")
+logger = logging.getLogger("alert.hazards.usgs")
 
 USGS_QUERY_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 

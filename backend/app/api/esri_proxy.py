@@ -6,7 +6,7 @@ placeholder JPEG ("Map data not yet available.") wherever imagery does
 not exist at the requested level. MapLibre cannot distinguish those from
 real tiles, so users see gray text tiles at deep zoom.
 
-Solution: proxy Esri through NOAH. Each tile is analyzed once:
+Solution: proxy Esri through ALERT. Each tile is analyzed once:
   - real imagery  -> cached and served (200 image/jpeg)
   - placeholder   -> cached as EMPTY sentinel; served as 404 so MapLibre
                      drops the tile and reveals the Sentinel-2 underlay
@@ -21,7 +21,7 @@ import numpy as np
 from fastapi import APIRouter, HTTPException, Request, Response
 from PIL import Image
 
-logger = logging.getLogger("noah.esri")
+logger = logging.getLogger("alert.esri")
 
 router = APIRouter()
 
@@ -41,7 +41,7 @@ def _get_client() -> httpx.AsyncClient:
     if _client is None:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(connect=3.0, read=6.0, write=6.0, pool=3.0),
-            headers={"User-Agent": "NOAH/1.0 (tile proxy)"},
+            headers={"User-Agent": "ALERT/1.0 (tile proxy)"},
         )
     return _client
 
@@ -79,8 +79,12 @@ async def fetch_esri_tile(z: int, x: int, y: int,
 
 @router.get("/tiles/esri/{z}/{x}/{y}.jpg")
 async def esri_tile(z: int, x: int, y: int, request: Request):
-    if z < 0 or z > MAX_Z:
+    if z < 0:
         raise HTTPException(400, "zoom out of range")
+    # Overzoom: clamp to MAX_Z and scale x/y to parent tile
+    if z > MAX_Z:
+        shift = z - MAX_Z
+        z, x, y = MAX_Z, x >> shift, y >> shift
     n = 1 << z
     if not (0 <= x < n and 0 <= y < n):
         raise HTTPException(404, "tile outside pyramid")

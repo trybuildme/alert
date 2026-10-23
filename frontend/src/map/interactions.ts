@@ -1,4 +1,4 @@
-// Click/dblclick interaction routing for the NOAH map.
+// Click/dblclick interaction routing for the ALERT map.
 //
 // Click priority: active draw tool > earthquake selection > farm inspect
 // > drawn-feature selection > generic inspect. Dblclick finishes open

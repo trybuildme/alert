@@ -51,7 +51,7 @@ def test_live_tile_passthrough(client, monkeypatch):
     r = client.get(f"/tiles/himawari-clean-ir/3/5/3.png?time={STAMP}")
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/png"
-    assert r.headers["x-noah-source"] == "live"
+    assert r.headers["x-alert-source"] == "live"
     assert r.content == real
     assert mock.hits == 1
     # GIBS WMTS path order is {z}/{y}/{x}
@@ -68,7 +68,7 @@ def test_live_tile_cached(client, monkeypatch):
     r2 = client.get(f"/tiles/himawari-clean-ir/1/0/0.png?time={STAMP}")
     assert r1.status_code == 200 and r2.status_code == 200
     assert mock.hits == 1  # second served from cache
-    assert r2.headers["x-noah-source"] == "live"
+    assert r2.headers["x-alert-source"] == "live"
 
 
 def test_gap_returns_transparent_and_is_cached(client, monkeypatch):
@@ -77,13 +77,13 @@ def test_gap_returns_transparent_and_is_cached(client, monkeypatch):
 
     r = client.get(f"/tiles/himawari-air-mass/2/1/1.png?time={STAMP}")
     assert r.status_code == 200
-    assert r.headers["x-noah-source"] == "gap"
+    assert r.headers["x-alert-source"] == "gap"
     assert r.content == gibs_proxy.TRANSPARENT_PNG
 
     # Gap verdict cached: upstream must not be asked twice
     r2 = client.get(f"/tiles/himawari-air-mass/2/1/1.png?time={STAMP}")
     assert r2.status_code == 200
-    assert r2.headers["x-noah-source"] == "gap"
+    assert r2.headers["x-alert-source"] == "gap"
     assert mock.hits == 1
 
 
@@ -93,7 +93,7 @@ def test_unreachable_gibs_falls_back_to_synthetic(client, monkeypatch):
 
     r = client.get(f"/tiles/himawari-visible-red/4/8/6.png?time={STAMP}")
     assert r.status_code == 200
-    assert r.headers["x-noah-source"] == "fallback"
+    assert r.headers["x-alert-source"] == "fallback"
     # Synthetic generator output: opaque RGBA, not the transparent gap tile
     assert len(r.content) > 1000
     assert r.content != gibs_proxy.TRANSPARENT_PNG
@@ -105,7 +105,7 @@ def test_http_500_also_degrades_to_fallback(client, monkeypatch):
 
     r = client.get(f"/tiles/himawari-clean-ir/2/2/1.png?time={STAMP}")
     assert r.status_code == 200
-    assert r.headers["x-noah-source"] == "fallback"
+    assert r.headers["x-alert-source"] == "fallback"
 
 
 def test_beyond_matrix_zoom_never_hits_upstream(client, monkeypatch):
@@ -114,7 +114,7 @@ def test_beyond_matrix_zoom_never_hits_upstream(client, monkeypatch):
 
     r = client.get(f"/tiles/himawari-clean-ir/9/100/100.png?time={STAMP}")
     assert r.status_code == 200
-    assert r.headers["x-noah-source"] == "gap"
+    assert r.headers["x-alert-source"] == "gap"
     assert r.content == gibs_proxy.TRANSPARENT_PNG
     assert mock.hits == 0
 
@@ -175,7 +175,7 @@ def test_newest_frame_walkback_recovers_previous_frame(client, monkeypatch, isol
 
     r = client.get("/tiles/himawari-clean-ir/2/3/1.png")
     assert r.status_code == 200
-    assert r.headers["x-noah-source"] == "live"
+    assert r.headers["x-alert-source"] == "live"
     assert len(seen) == 3                       # newest + 2 walk-back steps
     assert seen[0] > seen[1] > seen[2]          # walked strictly backwards
 
@@ -183,7 +183,7 @@ def test_newest_frame_walkback_recovers_previous_frame(client, monkeypatch, isol
     # is a pure cache hit and does not re-hit upstream.
     r2 = client.get("/tiles/himawari-clean-ir/2/3/1.png")
     assert r2.status_code == 200
-    assert r2.headers["x-noah-source"] == "live"
+    assert r2.headers["x-alert-source"] == "live"
     assert len(seen) == 3
 
 
@@ -198,7 +198,7 @@ def test_newest_frame_persistent_gap_cached_briefly(client, monkeypatch, isolate
 
     r1 = client.get("/tiles/himawari-visible-red/3/3/3.png")
     assert r1.status_code == 200
-    assert r1.headers["x-noah-source"] == "gap"
+    assert r1.headers["x-alert-source"] == "gap"
     assert r1.content == gibs_proxy.TRANSPARENT_PNG
     # A gap verdict was cached (briefly, per GAP_TTL_NEWEST_S)
     assert any(v[1][:1] == gibs_proxy._MODE_GAP
@@ -240,8 +240,8 @@ def test_enhanced_route_recolors_and_separates_cache(client, monkeypatch):
     plain = client.get(f"/tiles/himawari-clean-ir/3/6/3.png?time={STAMP}")
     windy = client.get(f"/tiles/himawari-clean-ir/3/6/3.png?time={STAMP}&palette=windy")
     assert plain.status_code == windy.status_code == 200
-    assert plain.headers["x-noah-source"] == "live"
-    assert windy.headers["x-noah-source"] == "live"
+    assert plain.headers["x-alert-source"] == "live"
+    assert windy.headers["x-alert-source"] == "live"
     # Recolored body differs from the grayscale original and actually
     # maps intensity 230 through the LUT (bright deck -> white)
     import io as _io
@@ -306,7 +306,7 @@ def test_modis_jpeg_upstream_served_as_png(client, monkeypatch):
     r = client.get("/tiles/modis-true-color/5/9/5.png?time=2026-08-20")
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/png"
-    assert r.headers["x-noah-source"] == "live"
+    assert r.headers["x-alert-source"] == "live"
     # Body is a genuine PNG despite JPEG upstream
     assert r.content[:8] == b"\x89PNG\r\n\x1a\n"
     # Upstream hit used the Level9 matrix with {z}/{y}/{x} order and .jpg

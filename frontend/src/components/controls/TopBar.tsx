@@ -33,8 +33,8 @@ export default function TopBar() {
       <div className="topbar-brand">
         <span className="brand-mark" />
         <div>
-          <div className="brand-name">NOAH</div>
-          <div className="brand-sub">Nationwide Operational Assessment of Hazards</div>
+          <div className="brand-name">A.L.E.R.T</div>
+          <div className="brand-sub">Atmospheric & Landscape Emergency Response Tracker</div>
         </div>
       </div>
 

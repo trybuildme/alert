@@ -28,7 +28,7 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
         env:
-          NOAH_TILE_CACHE_DIR: /tmp/noah-tilecache-ci
+          ALERT_TILE_CACHE_DIR: /tmp/alert-tilecache-ci
           EARTHQUAKE_ENABLED: '0'
 
   frontend:
@@ -91,9 +91,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: noah-backend
+          - name: alert-backend
             context: ./backend
-          - name: noah-frontend
+          - name: alert-frontend
             context: ./frontend
     steps:
       - uses: actions/checkout@v4

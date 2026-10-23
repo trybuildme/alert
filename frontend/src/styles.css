@@ -293,6 +293,32 @@ html, body, #root { height: 100%; overflow: hidden; background: var(--bg); color
   border-radius: 6px; padding: 5px; font-size: 11px; cursor: pointer;
 }
 .measurement-detail { border-top: 1px solid var(--border); padding: 8px 14px 12px; }
+.export-btn { margin-top: 8px; width: 100%; }
+
+/* ---------------- Screenshot export panel ---------------- */
+
+.screenshot-panel {
+  position: absolute; top: 50%; transform: translateY(-50%); right: 190px; width: 220px; z-index: 15;
+  background: var(--panel); backdrop-filter: blur(8px);
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+}
+.screenshot-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.screenshot-row span { font-size: 11px; color: var(--text-dim); }
+.screenshot-toggle { display: flex; gap: 4px; }
+.screenshot-toggle button {
+  background: #131b2c; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 5px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+}
+.screenshot-toggle button.active { background: rgba(34, 211, 238, 0.15); border-color: var(--accent); color: var(--accent); }
+.screenshot-slider { display: flex; align-items: center; gap: 6px; }
+.screenshot-slider input[type="range"] { width: 80px; accent-color: var(--accent); }
+.screenshot-slider span { font-size: 11px; color: var(--text); min-width: 30px; }
+.screenshot-meta { font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
+.screenshot-export-btn {
+  width: 100%; background: var(--accent); color: #0a0e17; border: none;
+  border-radius: 6px; padding: 7px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.screenshot-export-btn:hover { opacity: 0.9; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
@@ -569,4 +595,21 @@ html, body, #root { height: 100%; overflow: hidden; background: var(--bg); color
   position: absolute; top: 12px; right: 12px; z-index: 40;
   max-width: 320px; padding: 8px 12px; border-radius: 8px;
   background: rgba(127, 29, 29, 0.9); color: #fecaca; font-size: 11px;
+}
+
+/* --- Real-time stream indicator --- */
+.stream-indicator {
+  font-size: 10px; letter-spacing: 1px; margin-left: 8px;
+  padding: 2px 6px; border-radius: 4px;
+}
+.stream-indicator.connected {
+  color: #22c55e; background: rgba(34, 197, 94, 0.15);
+}
+.stream-indicator.disconnected {
+  color: #f87171; background: rgba(248, 113, 113, 0.15);
+}
+
+.last-update {
+  font-size: 10px; color: var(--text-dim); margin-left: 8px;
+  font-weight: normal;
 }

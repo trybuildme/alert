@@ -1,10 +1,12 @@
 // Flood station popup — opens when a rain/water-level/alert marker is
 // clicked. Shows current measurement, trend context, quality, source
-// and data status with NOAH's honesty contract baked in.
+// and data status with ALERT's honesty contract baked in.
+// Real-time updates via SSE stream.
 
 import { useEffect, useState } from 'react'
 import { useI18n } from '../../i18n'
 import { useUIStore } from '../../stores'
+import { useFloodStream } from '../../hooks/useFloodStream'
 
 interface FloodStationDetail {
   station: {
@@ -39,7 +41,10 @@ export default function FloodStationPopup() {
   const { t } = useI18n()
   const [detail, setDetail] = useState<FloodStationDetail | null>(null)
   const [error, setError] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+  const { connected, lastEvent } = useFloodStream()
 
+  // Fetch station data
   useEffect(() => {
     if (!stationId) {
       setDetail(null)
@@ -54,12 +59,44 @@ export default function FloodStationPopup() {
         const res = await fetch(
           `/api/flood/observations/${encodeURIComponent(stationId)}`)
         if (!res.ok) throw new Error(String(res.status))
-        if (!cancelled) setDetail(await res.json())
+        if (!cancelled) {
+          const data = await res.json()
+          setDetail(data)
+          setLastUpdate(data.generated_at)
+        }
       } catch {
         if (!cancelled) setError(true)
       }
     })()
     return () => { cancelled = true }
+  }, [stationId])
+
+  // Handle real-time alert events for this station
+  useEffect(() => {
+    if (!lastEvent || lastEvent.type !== 'alert' || !stationId) return
+    if (lastEvent.station_id === stationId) {
+      // Refresh data when we receive an alert for this station
+      setLastUpdate(lastEvent.timestamp || new Date().toISOString())
+    }
+  }, [lastEvent, stationId])
+
+  // Auto-refresh every 5 minutes for real-time updates
+  useEffect(() => {
+    if (!stationId) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/flood/observations/${encodeURIComponent(stationId)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setDetail(data)
+          setLastUpdate(data.generated_at)
+        }
+      } catch {
+        // Ignore refresh errors
+      }
+    }, 300000) // 5 minutes
+    return () => clearInterval(interval)
   }, [stationId])
 
   useEffect(() => {
@@ -77,6 +114,10 @@ export default function FloodStationPopup() {
     <aside className="profile-popup" data-testid="flood-popup">
       <div className="panel-head">
         FLOOD STATION
+        <span className={`stream-indicator ${connected ? 'connected' : 'disconnected'}`}
+              title={connected ? 'Real-time stream connected' : 'Stream disconnected'}>
+          {connected ? '● LIVE' : '○ OFFLINE'}
+        </span>
         <button className="close-btn" onClick={() => setStationId(null)}
                 title="Close">✕</button>
       </div>
@@ -102,7 +143,14 @@ export default function FloodStationPopup() {
           </div>
 
           <div className="inspect-section">
-            <div className="section-title">Current readings</div>
+            <div className="section-title">
+              Current readings
+              {lastUpdate && (
+                <span className="last-update">
+                  Updated: {new Date(lastUpdate).toLocaleTimeString()}
+                </span>
+              )}
+            </div>
             {Object.keys(detail.series).length === 0 && (
               <div className="fc-note">
                 No observations yet.
@@ -140,8 +188,8 @@ export default function FloodStationPopup() {
                   <div className="kv"><span>Data source</span><b>{latestRow.source}</b></div>
                   <div className="kv"><span>Quality</span><b>{latestRow.quality}</b></div>
                   <p className="fc-note" style={{ margin: '4px 0 0' }}>
-                    Rainfall is real model data via Open-Meteo · risk levels are
-                    NOAH's classification of OBSERVED data — official warnings
+                    Rainfall is REAL data via Open-Meteo + RainViewer · risk levels are
+                    ALERT's classification of OBSERVED data — official warnings
                     via PAGASA.
                   </p>
                 </>

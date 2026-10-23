@@ -1,6 +1,6 @@
 {
-  "name": "NOAH — Nationwide Operational Assessment of Hazards",
-  "short_name": "NOAH",
+  "name": "ALERT — Atmospheric & Landscape Emergency Response Tracker",
+  "short_name": "ALERT",
   "description": "Real-time hazard map: earthquakes, volcanoes, cyclones, tsunami bulletins and flood risk for the Philippines.",
   "start_url": "/",
   "display": "standalone",

@@ -13,7 +13,7 @@ Three honest modes per tile:
     gap      GIBS answered 404 (housekeeping window / frame not produced)
              -> transparent PNG, never synthetic filler
     fallback GIBS unreachable -> synthetic generator keeps the app usable,
-             flagged via X-Noah-Source so the client can disclose it
+             flagged via X-Alert-Source so the client can disclose it
 
 Time strings use the same %Y-%m-%dT%H:%M:%SZ stamps as the internal time
 index; the /api/products/{id}/times endpoint already emits that grid.
@@ -29,7 +29,7 @@ from PIL import Image
 
 from app.services.tile_service import PRODUCTS, TILE_SIZE, TileService
 
-logger = logging.getLogger("noah.gibs")
+logger = logging.getLogger("alert.gibs")
 
 GIBS_BASE = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
@@ -131,7 +131,7 @@ def _get_client() -> httpx.AsyncClient:
     if _client is None:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(15.0, connect=5.0),
-            headers={"User-Agent": "NOAH/1.0 (live Himawari tile proxy)"},
+            headers={"User-Agent": "ALERT/1.0 (live Himawari tile proxy)"},
             follow_redirects=True,
         )
     return _client

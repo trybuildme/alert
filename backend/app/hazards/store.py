@@ -1,7 +1,7 @@
 """SQLite persistence for normalized hazard events (earthquakes today).
 
 Deliberate choices:
-  * stdlib sqlite3 — NOAH has no database layer; adding a Postgres
+  * stdlib sqlite3 — ALERT has no database layer; adding a Postgres
     container for one module violates the no-unnecessary-infrastructure
     rule. The schema below is deliberately PostGIS-shaped so a future
     migration is mechanical (see docs/earthquake/DATABASE.md).

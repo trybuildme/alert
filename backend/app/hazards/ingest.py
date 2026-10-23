@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from app.hazards.base import EventBus, HazardProvider
 from app.hazards.store import EarthquakeStore
 
-logger = logging.getLogger("noah.hazards.ingest")
+logger = logging.getLogger("alert.hazards.ingest")
 
 _BACKOFF_CAP_S = 480
 

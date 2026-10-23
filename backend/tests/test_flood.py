@@ -118,7 +118,7 @@ class TestStore:
         alert = {"id": "flood:wl-test", "station_id": "wl-test",
                  "level": "WATCH", "reason": "test", "measurement": 2.0,
                  "unit": "mm", "threshold": 1.0, "basis": "observed",
-                 "source": "noah-flood-engine"}
+                 "source": "alert-flood-engine"}
         assert store.upsert_alert(alert) is True          # new
         assert store.upsert_alert({**alert}) is False      # same level: no-op
         alert2 = {**alert, "level": "WARNING"}

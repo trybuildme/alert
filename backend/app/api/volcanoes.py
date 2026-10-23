@@ -118,7 +118,7 @@ async def activity(request: Request) -> JSONResponse:
         "generated_at": datetime.now(timezone.utc)
             .strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source": "assessment-synthesis",
-        "disclaimer": ("Automated NOAH assessments — not official "
+        "disclaimer": ("Automated ALERT assessments — not official "
                        "PHIVOLCS Alert Levels."),
         "volcanoes": out,
     })

@@ -27,7 +27,7 @@ test('rain station click opens info popup', async ({ page }) => {
   await page.route('**/api/flood/stations**', (r) =>
     r.fulfill({ json: {
       type: 'FeatureCollection', features: [STATION_FEATURE],
-      source: 'noah-flood-monitoring',
+      source: 'alert-flood-monitoring',
     } }))
   await page.route('**/api/flood/observations/**', (r) =>
     r.fulfill({ json: {
@@ -49,9 +49,9 @@ test('rain station click opens info popup', async ({ page }) => {
   await page.goto('/')
   await page.waitForFunction(() => {
     const m = (window as unknown as {
-      __noah_map?: { isStyleLoaded: () => boolean;
+      __alert_map?: { isStyleLoaded: () => boolean;
         getLayer: (id: string) => { visibility?: string } | undefined }
-    }).__noah_map
+    }).__alert_map
     return !!m && m.isStyleLoaded() &&
       m.getLayer('flood-rain-circle')?.visibility === 'visible'
   }, undefined, { timeout: 45_000 })
@@ -59,21 +59,21 @@ test('rain station click opens info popup', async ({ page }) => {
   // Jump to Cebu and click the marker.
   await page.evaluate(() => {
     const m = (window as unknown as {
-      __noah_map: { jumpTo: (o: object) => void }
-    }).__noah_map
+      __alert_map: { jumpTo: (o: object) => void }
+    }).__alert_map
     m.jumpTo({ center: [124.0167, 10.3167], zoom: 10 })
   })
   await page.waitForTimeout(600)
   const box = await page.locator('.map-container').boundingBox()
   const pt = await page.evaluate(() => {
     const m = (window as unknown as {
-      __noah_map: { project: (ll: number[]) => { x: number; y: number } }
-    }).__noah_map
+      __alert_map: { project: (ll: number[]) => { x: number; y: number } }
+    }).__alert_map
     const p = m.project([124.0167, 10.3167])
     return { x: p.x, y: p.y }
   })
   const probe = await page.evaluate(([x, y]) => {
-    const m = (window as any).__noah_map
+    const m = (window as any).__alert_map
     const hits = m.queryRenderedFeatures([x, y])
     return {
       all: hits.map((f: any) => f.layer.id),

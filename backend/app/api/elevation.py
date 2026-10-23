@@ -2,7 +2,7 @@
 
 Source: Open-Meteo Elevation API (https://open-meteo.com/en/docs/elevation)
 backed by Copernicus DEM GLO-90 (~90 m posting). Free, no API key,
-up to 100 coordinates per request. NOAH samples the drawn line into
+up to 100 coordinates per request. ALERT samples the drawn line into
 <= 100 evenly-spaced points client-side, then asks for all of them in
 one upstream call.
 
@@ -19,7 +19,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-logger = logging.getLogger("noah.elevation")
+logger = logging.getLogger("alert.elevation")
 
 UPSTREAM = "https://api.open-meteo.com/v1/elevation"
 MAX_POINTS = 100            # upstream hard limit per request

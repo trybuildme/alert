@@ -18,7 +18,7 @@ import logging
 
 from pywebpush import WebPushException, webpush
 
-logger = logging.getLogger("noah.hazards.push")
+logger = logging.getLogger("alert.hazards.push")
 
 
 def send_to_subscription(sub: dict, payload: dict, private_key: str,

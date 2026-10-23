@@ -11,7 +11,7 @@ import os
 import shutil
 
 # Must be set before app.core.config is imported anywhere.
-os.environ["NOAH_TILE_CACHE_DIR"] = "/tmp/noah-test-cache"
+os.environ["NOAH_TILE_CACHE_DIR"] = "/tmp/alert-test-cache"
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402
@@ -25,9 +25,9 @@ def _deny(request: httpx.Request) -> httpx.Response:
 
 @pytest.fixture(scope="session", autouse=True)
 def clean_cache_dir():
-    shutil.rmtree("/tmp/noah-test-cache", ignore_errors=True)
+    shutil.rmtree("/tmp/alert-test-cache", ignore_errors=True)
     yield
-    shutil.rmtree("/tmp/noah-test-cache", ignore_errors=True)
+    shutil.rmtree("/tmp/alert-test-cache", ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

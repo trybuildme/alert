@@ -104,7 +104,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '1 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'NOAH synthetic Himawari-class feed',
+    attribution: 'ALERT synthetic Himawari-class feed',
   },
   {
     id: 'infrared',
@@ -119,7 +119,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '2 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'NOAH synthetic Himawari-class feed',
+    attribution: 'ALERT synthetic Himawari-class feed',
   },
   {
     id: 'water-vapor',
@@ -134,7 +134,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '2 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'NOAH synthetic Himawari-class feed',
+    attribution: 'ALERT synthetic Himawari-class feed',
   },
   {
     id: 'cloud-temp',
@@ -149,7 +149,7 @@ export const SATELLITE_PRODUCTS: SatelliteProduct[] = [
     resolutionLabel: '2 km',
     temporalResolution: '10 minutes',
     timeDependent: true,
-    attribution: 'NOAH synthetic Himawari-class feed',
+    attribution: 'ALERT synthetic Himawari-class feed',
   },
 ]
 
@@ -174,7 +174,7 @@ export const REAL_IMAGERY: SatelliteProduct[] = [
     name: 'Esri World Imagery',
     satellite: 'Esri/Maxar composite',
     color: '#eab308',
-    // Proxied through NOAH: placeholder tiles ("Map data not yet
+    // Proxied through ALERT: placeholder tiles ("Map data not yet
     // available.") are detected and dropped, revealing the S2 underlay.
     tiles: () => ['/tiles/esri/{z}/{x}/{y}.jpg'],
     tileSize: 256,

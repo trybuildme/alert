@@ -19,7 +19,7 @@ from app.flood.engine import assess_station, load_thresholds
 from app.flood.providers.base import FloodProvider
 from app.flood.store import FloodStore
 
-logger = logging.getLogger("noah.flood.ingest")
+logger = logging.getLogger("alert.flood.ingest")
 
 _METRIC_RE = re.compile(r"^(rainfall_mm_h|rainfall_mm_3h|rainfall_mm_24h|"
                         r"water_level_m)$")
@@ -163,7 +163,7 @@ class FloodIngestWorker:
             "unit": ("mm" if payload.get("threshold") else None),
             "threshold": payload.get("threshold"),
             "basis": assessment.get("basis", "observed"),
-            "source": "noah-flood-engine",
+            "source": "alert-flood-engine",
             "recommended_action": assessment["recommended_action"],
         }
         prev_level = self._store.latest_alert_level(alert_id)

@@ -10,7 +10,7 @@ test('circle draws from center+edge click with live preview', async ({ page }) =
     r.fulfill({ json: { source: 'unavailable', features: [] } }))
   await page.goto('/')
   await page.waitForFunction(() => {
-    const m = (window as unknown as { __noah_map?: { isStyleLoaded: () => boolean } }).__noah_map
+    const m = (window as unknown as { __alert_map?: { isStyleLoaded: () => boolean } }).__alert_map
     return !!m && m.isStyleLoaded()
   }, undefined, { timeout: 45_000 })
   await page.waitForTimeout(500)
@@ -30,8 +30,8 @@ test('circle draws from center+edge click with live preview', async ({ page }) =
   await page.waitForTimeout(400)
   const previewFeatures = await page.evaluate(() => {
     const m = (window as unknown as {
-      __noah_map: { querySourceFeatures: (id: string) => unknown[] }
-    }).__noah_map
+      __alert_map: { querySourceFeatures: (id: string) => unknown[] }
+    }).__alert_map
     return m.querySourceFeatures('draw-sketch').length
   })
   expect(previewFeatures).toBeGreaterThan(0)
@@ -51,7 +51,7 @@ test('rectangle completes on second corner click', async ({ page }) => {
     r.fulfill({ json: { source: 'unavailable', features: [] } }))
   await page.goto('/')
   await page.waitForFunction(() => {
-    const m = (window as unknown as { __noah_map?: { isStyleLoaded: () => boolean } }).__noah_map
+    const m = (window as unknown as { __alert_map?: { isStyleLoaded: () => boolean } }).__alert_map
     return !!m && m.isStyleLoaded()
   }, undefined, { timeout: 45_000 })
   await page.waitForTimeout(500)

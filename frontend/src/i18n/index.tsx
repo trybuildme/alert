@@ -1,4 +1,4 @@
-// Minimal Filipino (Tagalog) i18n layer for the NOAH UI chrome.
+// Minimal Filipino (Tagalog) i18n layer for the ALERT UI chrome.
 //
 // Design constraints:
 //   * No dependency — a flat dictionary + React context beats pulling
@@ -8,7 +8,7 @@
 //     English for now; the dictionary below is the extension point.
 //   * t() falls back to English, then to the key itself, so a missing
 //     translation can never blank out UI.
-//   * Choice persists in localStorage ('noah.lang'); default is
+//   * Choice persists in localStorage ('alert.lang'); default is
 //     English so existing users see no change.
 
 import {
@@ -22,7 +22,7 @@ import {
 
 export type Lang = 'en' | 'fil'
 
-const STORAGE_KEY = 'noah.lang'
+const STORAGE_KEY = 'alert.lang'
 
 type Entry = { en: string; fil: string }
 
@@ -68,7 +68,14 @@ export const DICT: Record<string, Entry> = {
   'volcano.basis': { en: 'Basis', fil: 'Batayan' },
 
   // App boot
-  'app.booting': { en: 'Initializing NOAH …', fil: 'Binubuksan ang NOAH …' },
+  'app.booting': { en: 'Initializing ALERT …', fil: 'Binubuksan ang ALERT …' },
+
+  // Screenshot export
+  'screenshot.export': { en: 'Export Screenshot', fil: 'I-export ang Screenshot' },
+  'screenshot.format': { en: 'Format', fil: 'Pormat' },
+  'screenshot.quality': { en: 'Quality', fil: 'Kalidad' },
+  'screenshot.scale': { en: 'Scale', fil: 'Sukat' },
+  'screenshot.title': { en: 'EXPORT SCREENSHOT', fil: 'I-EXPORT ANG SCREENSHOT' },
 }
 
 function initialLang(): Lang {

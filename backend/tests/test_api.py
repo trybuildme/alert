@@ -40,8 +40,9 @@ def test_tile_unknown_product_404(client):
     assert client.get("/tiles/nope/0/0/0.png").status_code == 404
 
 
-def test_tile_bad_zoom_400(client):
-    assert client.get("/tiles/true-color/30/0/0.png").status_code == 400
+def test_tile_overzoom_serves_parent(client):
+    r = client.get("/tiles/true-color/30/0/0.png")
+    assert r.status_code == 200
 
 
 def test_tile_outside_pyramid_404(client):
