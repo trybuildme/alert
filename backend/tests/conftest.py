@@ -16,7 +16,8 @@ os.environ["NOAH_TILE_CACHE_DIR"] = "/tmp/alert-test-cache"
 import httpx  # noqa: E402
 import pytest  # noqa: E402
 
-from app.api import esri_proxy, elevation, gibs_proxy, search  # noqa: E402
+from app.api import (elevation, esri_proxy, gibs_proxy, search,  # noqa: E402
+                     terrain_proxy)
 
 
 def _deny(request: httpx.Request) -> httpx.Response:
@@ -37,3 +38,5 @@ def no_external_http(monkeypatch):
     monkeypatch.setattr(search, "_client", httpx.AsyncClient(transport=mock))
     monkeypatch.setattr(gibs_proxy, "_client", httpx.AsyncClient(transport=mock))
     monkeypatch.setattr(elevation, "_client", httpx.AsyncClient(transport=mock))
+    monkeypatch.setattr(terrain_proxy, "_client",
+                        httpx.AsyncClient(transport=mock))

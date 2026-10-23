@@ -184,6 +184,23 @@ areas. ALERT proxies Esri tiles through `/tiles/esri/{z}/{x}/{y}.jpg`:
 
 Deep zoom therefore degrades to soft-but-real imagery, never fake detail.
 
+### 3D terrain, buildings & screenshot export
+
+- **Terrain** — 3D mode enables real DEM relief through
+  `/tiles/terrain/{z}/{x}/{y}.png`, a proxy for **AWS Terrain Tiles**
+  (Mapzen Terrarium encoding). Requests deeper than the native z14 level are
+  clamped to the parent tile; elevation is never synthesized.
+- **Buildings** — `/api/buildings` serves a height-filtered OpenStreetMap
+  footprint collection for Luzon (3,929 polygons in the committed data set).
+  Regenerate it offline with `backend/scripts/generate_buildings.py` (Overpass
+  API, no key required). If the file is absent the endpoint returns an empty
+  `FeatureCollection`, so the layer degrades honestly rather than failing.
+- **Screenshot export** — with a drawn polygon selected, *Export Screenshot*
+  renders the current map at 1×/2×/4× and stamps coordinates, zoom, timestamp,
+  basemap and visible layers onto the image. Metadata is embedded in the file
+  itself: JPG via EXIF (GPS + `DateTimeOriginal`), PNG via a `tEXt` JSON block.
+  The export hook also supports TIFF for direct GIS import.
+
 ## Zoom pyramid (#10)
 
 | Zoom | Coverage | Example |
@@ -240,13 +257,19 @@ at every level.
 | 18 | Drawing tools with area/perimeter/center | `MeasurementPanel.tsx`, spherical-excess math |
 | 19 | Farm workflow (fly-to, NDVI, weather, flood) | Farm click handler + inspect API |
 | 20 | Map-first UX | App layout |
+| 21 | Real 3D terrain (DEM) in 3D mode | `/tiles/terrain/{z}/{x}/{y}.png` → AWS Terrarium |
+| 22 | 3D building footprints (Luzon, height-filtered OSM) | `/api/buildings`, `buildings_luzon.geojson` |
+| 23 | Georeferenced screenshot export (JPG/PNG, 1×/2×/4×, EXIF/XMP) | `ScreenshotExportPanel.tsx`, `useScreenshotExport.ts` |
 
 ## Tests
 
 ```bash
-cd backend && .venv/bin/python -m pytest tests -q   # 65 tests
+cd backend && .venv/bin/python -m pytest tests -q   # 186 tests
 cd frontend && npx tsc && npm run build             # typecheck + production build
 ```
+
+The frontend's Vitest specs currently need Node ≥ 22 (jsdom 30 / undici 8);
+the Node 20 host used for development cannot start the jsdom worker.
 
 ## Ports
 
